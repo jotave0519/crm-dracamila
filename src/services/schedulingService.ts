@@ -1,0 +1,83 @@
+import * as googleCalendar from "../integrations/googleCalendarClient";
+import * as scheduleRepository from "../repositories/scheduleRepository";
+import { Schedule } from "../types";
+import { AppError } from "../utils/appError";
+import { toSaoPauloDateTimeParts } from "../utils/timezone";
+
+export async function checkAvailability(date: string, durationMinutes?: number): Promise<string[]> {
+  return googleCalendar.checkAvailability(date, durationMinutes);
+}
+
+/** Quando a data pedida nao tem vaga, procura o proximo dia (ate maxDaysForward) com horarios livres. */
+export async function findNextAvailable(afterDate: string, durationMinutes?: number, maxDaysForward = 7): Promise<{ date: string; slots: string[] } | null> {
+  const cursor = new Date(`${afterDate}T12:00:00-03:00`);
+  for (let i = 1; i <= maxDaysForward; i += 1) {
+    cursor.setDate(cursor.getDate() + 1);
+    const candidateDate = cursor.toISOString().slice(0, 10);
+    const slots = await checkAvailability(candidateDate, durationMinutes);
+    if (slots.length > 0) return { date: candidateDate, slots };
+  }
+  return null;
+}
+
+export async function createAppointment(params: {
+  userId: string;
+  name: string;
+  phone: string;
+  service: string;
+  treatmentTypeId?: string | null;
+  treatmentPlanId?: string | null;
+  start: string;
+  durationMinutes?: number;
+  notes?: string | null;
+}): Promise<Schedule> {
+  const event = await googleCalendar.createEvent({
+    name: params.name,
+    phone: params.phone,
+    service: params.service,
+    start: params.start,
+    durationMinutes: params.durationMinutes,
+    notes: params.notes,
+  });
+
+  const { date, time } = toSaoPauloDateTimeParts(new Date(params.start));
+
+  return scheduleRepository.createSchedule({
+    userId: params.userId,
+    patientName: params.name,
+    phone: params.phone,
+    procedure: params.service,
+    treatmentTypeId: params.treatmentTypeId,
+    treatmentPlanId: params.treatmentPlanId,
+    date,
+    time,
+    googleEventId: event.id!,
+    notes: params.notes,
+    durationMinutes: params.durationMinutes ?? null,
+  });
+}
+
+export async function findAppointmentsForUser(userId: string): Promise<Schedule[]> {
+  return scheduleRepository.findActiveSchedulesByUser(userId);
+}
+
+export async function rescheduleAppointment(scheduleId: string, newStart: string, durationMinutes?: number): Promise<Schedule> {
+  const schedule = await scheduleRepository.findScheduleById(scheduleId);
+  if (!schedule) throw new AppError(`Agendamento nao encontrado: ${scheduleId}`);
+  if (!schedule.google_event_id) throw new AppError(`Agendamento sem evento no Google Calendar: ${scheduleId}`);
+
+  await googleCalendar.updateEvent(schedule.google_event_id, newStart, durationMinutes);
+  const { date, time } = toSaoPauloDateTimeParts(new Date(newStart));
+  return scheduleRepository.updateScheduleDateTime(scheduleId, date, time);
+}
+
+export async function cancelAppointment(scheduleId: string): Promise<Schedule> {
+  const schedule = await scheduleRepository.findScheduleById(scheduleId);
+  if (!schedule) throw new AppError(`Agendamento nao encontrado: ${scheduleId}`);
+
+  if (schedule.google_event_id) {
+    await googleCalendar.cancelEvent(schedule.google_event_id);
+  }
+
+  return scheduleRepository.updateScheduleStatus(scheduleId, "Cancelado");
+}

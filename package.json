@@ -1,0 +1,29 @@
+{
+  "name": "agente-whatsapp-dracamila",
+  "version": "0.1.0",
+  "description": "Agente de atendimento via WhatsApp + CRM para clinica de fisioterapia",
+  "main": "dist/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "google:auth": "ts-node scripts/googleAuthSetup.ts",
+    "staff:create": "ts-node scripts/createStaffAdmin.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "axios": "^1.7.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "multer": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^22.9.0",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.6.3"
+  }
+}
