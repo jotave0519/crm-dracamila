@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
 interface ReportData {
@@ -26,6 +27,7 @@ function firstDayOfMonth(): string {
 const STATUS_LABEL: Record<string, string> = { Agendado: "Agendadas", Confirmado: "Confirmadas", Concluido: "Realizadas", Faltou: "Faltas", Cancelado: "Canceladas" };
 
 export function Relatorios() {
+  const isMobile = useIsMobile();
   const [from, setFrom] = useState(firstDayOfMonth());
   const [to, setTo] = useState(toIso(new Date()));
   const [data, setData] = useState<ReportData | null>(null);
@@ -77,7 +79,7 @@ export function Relatorios() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
             <div className="card">
               <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 14 }}>Sessões por status</div>
               {Object.keys(data.sessionsByStatus).length === 0 && <div className="empty-state">Nenhuma sessão no período.</div>}

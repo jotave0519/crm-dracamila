@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { MoonIcon, SunIcon } from "../components/icons";
 import { api } from "../lib/api";
 
@@ -36,6 +37,7 @@ export function Configuracoes() {
   const [status, setStatus] = useState<StatusData | null>(null);
   const [qr, setQr] = useState<{ base64: string | null } | null>(null);
   const [loadingQr, setLoadingQr] = useState(false);
+  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
 
   useEffect(() => {
     api.get<{ clinic: ClinicSettings }>("/settings").then((r) => setClinic(r.clinic)).catch((e) => setError(e.message));
@@ -74,8 +76,8 @@ export function Configuracoes() {
     }
   }
 
-  async function handleDisconnect() {
-    if (!window.confirm("Desconectar o WhatsApp da clínica?")) return;
+  async function confirmDisconnect() {
+    setConfirmingDisconnect(false);
     try {
       await api.post("/whatsapp/disconnect", {});
       loadStatus();
@@ -113,7 +115,7 @@ export function Configuracoes() {
             <span className={`badge ${connected ? "badge-green" : "badge-red"}`}>{status === null ? "..." : connected ? "Conectado" : "Desconectado"}</span>
           </div>
           {connected ? (
-            <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={handleDisconnect}>
+            <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={() => setConfirmingDisconnect(true)}>
               Desconectar
             </button>
           ) : qr?.base64 ? (
@@ -192,6 +194,15 @@ export function Configuracoes() {
           </form>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmingDisconnect}
+        title="Desconectar WhatsApp?"
+        message="A clínica para de receber e responder mensagens pelo WhatsApp até reconectar."
+        confirmLabel="Desconectar"
+        onConfirm={confirmDisconnect}
+        onCancel={() => setConfirmingDisconnect(false)}
+      />
     </div>
   );
 }

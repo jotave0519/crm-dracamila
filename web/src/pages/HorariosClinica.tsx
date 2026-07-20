@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { api } from "../lib/api";
 
 interface BusinessHourRow {
@@ -60,8 +61,11 @@ export function HorariosClinica() {
   const [slots, setSlots] = useState<BusinessHourSlot[]>([]);
   const [exceptions, setExceptions] = useState<BusinessHourException[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [excForm, setExcForm] = useState({ date: "", type: "block" as const, closed: true, note: "" });
+  const [excForm, setExcForm] = useState({ date: "", type: "block" as "holiday" | "block" | "special", closed: true, note: "" });
   const [excSlots, setExcSlots] = useState<string[]>([]);
+  const [editingExceptionId, setEditingExceptionId] = useState<string | null>(null);
+  const [pendingRemoveSlot, setPendingRemoveSlot] = useState<{ id: string; time: string } | null>(null);
+  const [pendingRemoveException, setPendingRemoveException] = useState<BusinessHourException | null>(null);
 
   function load() {
     api
@@ -98,30 +102,43 @@ export function HorariosClinica() {
     }
   }
 
-  async function removeSlot(id: string) {
+  async function confirmRemoveSlot() {
+    if (!pendingRemoveSlot) return;
     try {
-      await api.delete(`/business-hours/slots/${id}`);
+      await api.delete(`/business-hours/slots/${pendingRemoveSlot.id}`);
+      setPendingRemoveSlot(null);
       load();
     } catch (e: any) {
       setError(e.message);
     }
   }
 
+  function startEditException(exc: BusinessHourException) {
+    setEditingExceptionId(exc.id);
+    setExcForm({ date: exc.date, type: exc.type, closed: exc.closed, note: exc.note || "" });
+    setExcSlots(exc.slots || []);
+  }
+
   async function handleCreateException(e: FormEvent) {
     e.preventDefault();
     try {
-      await api.post("/business-hours/exceptions", { ...excForm, slots: excForm.closed ? null : excSlots });
+      const payload = { ...excForm, slots: excForm.closed ? null : excSlots };
+      if (editingExceptionId) await api.patch(`/business-hours/exceptions/${editingExceptionId}`, payload);
+      else await api.post("/business-hours/exceptions", payload);
       setExcForm({ date: "", type: "block", closed: true, note: "" });
       setExcSlots([]);
+      setEditingExceptionId(null);
       load();
     } catch (err: any) {
       setError(err.message);
     }
   }
 
-  async function removeException(id: string) {
+  async function confirmRemoveException() {
+    if (!pendingRemoveException) return;
     try {
-      await api.delete(`/business-hours/exceptions/${id}`);
+      await api.delete(`/business-hours/exceptions/${pendingRemoveException.id}`);
+      setPendingRemoveException(null);
       load();
     } catch (e: any) {
       setError(e.message);
@@ -156,7 +173,7 @@ export function HorariosClinica() {
                   onAdd={(t) => addSlot(weekday, t)}
                   onRemove={(t) => {
                     const match = slots.find((s) => s.weekday === weekday && s.time.slice(0, 5) === t);
-                    if (match) removeSlot(match.id);
+                    if (match) setPendingRemoveSlot({ id: match.id, time: t });
                   }}
                 />
               )}
@@ -169,6 +186,7 @@ export function HorariosClinica() {
       <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 14 }}>Para um dia específico com expediente diferente do normal (ou totalmente fechado).</p>
 
       <form onSubmit={handleCreateException} className="card" style={{ maxWidth: 480, display: "grid", gap: 12, marginBottom: 20 }}>
+        {editingExceptionId && <div style={{ fontSize: 13.5, fontWeight: 600 }}>Editando exceção</div>}
         <div>
           <label className="field-label">Data</label>
           <input className="input" type="date" required value={excForm.date} onChange={(e) => setExcForm({ ...excForm, date: e.target.value })} />
@@ -187,9 +205,24 @@ export function HorariosClinica() {
           <label className="field-label">Observação (opcional)</label>
           <input className="input" value={excForm.note} onChange={(e) => setExcForm({ ...excForm, note: e.target.value })} placeholder="Ex: Feriado nacional" />
         </div>
-        <button className="btn" type="submit" style={{ width: "fit-content" }}>
-          Adicionar
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn" type="submit" style={{ width: "fit-content" }}>
+            {editingExceptionId ? "Salvar alterações" : "Adicionar"}
+          </button>
+          {editingExceptionId && (
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => {
+                setEditingExceptionId(null);
+                setExcForm({ date: "", type: "block", closed: true, note: "" });
+                setExcSlots([]);
+              }}
+            >
+              Cancelar edição
+            </button>
+          )}
+        </div>
       </form>
 
       {exceptions.length > 0 && (
@@ -200,13 +233,35 @@ export function HorariosClinica() {
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>{new Date(`${exc.date}T12:00:00`).toLocaleDateString("pt-BR")}</div>
                 <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{exc.closed ? "Fechado" : `Horários: ${exc.slots?.join(", ") || "—"}`}{exc.note ? ` · ${exc.note}` : ""}</div>
               </div>
-              <button className="btn-danger" style={{ height: 32, padding: "0 12px", fontSize: 12 }} onClick={() => removeException(exc.id)}>
-                Remover
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-secondary" style={{ height: 32, padding: "0 12px", fontSize: 12 }} onClick={() => startEditException(exc)}>
+                  Editar
+                </button>
+                <button className="btn-danger" style={{ height: 32, padding: "0 12px", fontSize: 12 }} onClick={() => setPendingRemoveException(exc)}>
+                  Remover
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingRemoveSlot}
+        title="Remover horário?"
+        message={pendingRemoveSlot ? `O horário ${pendingRemoveSlot.time} deixa de ser oferecido.` : ""}
+        confirmLabel="Remover"
+        onConfirm={confirmRemoveSlot}
+        onCancel={() => setPendingRemoveSlot(null)}
+      />
+      <ConfirmDialog
+        open={!!pendingRemoveException}
+        title="Remover exceção?"
+        message={pendingRemoveException ? `A exceção de ${new Date(`${pendingRemoveException.date}T12:00:00`).toLocaleDateString("pt-BR")} será removida.` : ""}
+        confirmLabel="Remover"
+        onConfirm={confirmRemoveException}
+        onCancel={() => setPendingRemoveException(null)}
+      />
     </div>
   );
 }

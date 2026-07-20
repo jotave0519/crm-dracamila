@@ -1,4 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
@@ -38,8 +40,12 @@ interface PatientOption {
   name: string;
 }
 
-const RECEITA_CATEGORIES = ["Sessão", "Pacote", "Avaliação", "Venda de produto", "Outro"];
-const DESPESA_CATEGORIES = ["Aluguel", "Funcionário", "Material", "Impostos", "Energia", "Água", "Internet", "Marketing", "Outros"];
+interface FinancialCategory {
+  id: string;
+  type: TransactionType;
+  name: string;
+}
+
 const PAYMENT_METHODS = ["Pix", "Dinheiro", "Crédito", "Débito", "Transferência"];
 
 function formatMoney(v: number): string {
@@ -166,6 +172,19 @@ export function Financeiro() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
+
+  const [categories, setCategories] = useState<FinancialCategory[]>([]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryType, setNewCategoryType] = useState<TransactionType>("receita");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState("");
+  const [pendingDeleteCategory, setPendingDeleteCategory] = useState<FinancialCategory | null>(null);
+
+  function loadCategories() {
+    api.get<{ items: FinancialCategory[] }>("/financial-categories").then((r) => setCategories(r.items)).catch((e) => setError(e.message));
+  }
 
   function loadSummary() {
     api.get<Summary>(`/financial-summary?from=${from}&to=${to}`).then(setSummary).catch((e) => setError(e.message));
@@ -182,6 +201,7 @@ export function Financeiro() {
   useEffect(() => {
     api.get<{ months: ChartMonth[] }>("/financial-chart").then((r) => setChart(r.months)).catch((e) => setError(e.message));
     api.get<{ items: PatientOption[] }>("/patients?limit=200").then((r) => setPatients(r.items));
+    loadCategories();
   }, []);
 
   useEffect(loadSummary, [from, to]);
@@ -237,10 +257,11 @@ export function Financeiro() {
     }
   }
 
-  async function handleDelete(t: Transaction) {
-    if (!window.confirm(`Excluir a movimentação "${t.description}"?`)) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
     try {
-      await api.delete(`/financial-transactions/${t.id}`);
+      await api.delete(`/financial-transactions/${pendingDelete.id}`);
+      setPendingDelete(null);
       loadTransactions();
       loadSummary();
     } catch (e: any) {
@@ -248,7 +269,63 @@ export function Financeiro() {
     }
   }
 
-  const categoryOptions = form.type === "receita" ? RECEITA_CATEGORIES : DESPESA_CATEGORIES;
+  async function handleDuplicate(t: Transaction) {
+    try {
+      await api.post("/financial-transactions", {
+        type: t.type,
+        description: t.description,
+        category: t.category,
+        patient_id: t.patient_id,
+        payment_method: t.payment_method,
+        transaction_date: toIso(new Date()),
+        amount: t.amount,
+        status: t.status,
+        notes: t.notes,
+      });
+      loadTransactions();
+      loadSummary();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  async function handleCreateCategory(e: FormEvent) {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    try {
+      await api.post("/financial-categories", { type: newCategoryType, name: newCategoryName.trim() });
+      setNewCategoryName("");
+      loadCategories();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  async function handleRenameCategory(id: string) {
+    if (!editingCategoryName.trim()) return;
+    try {
+      await api.patch(`/financial-categories/${id}`, { name: editingCategoryName.trim() });
+      setEditingCategoryId(null);
+      loadCategories();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  async function confirmDeleteCategory() {
+    if (!pendingDeleteCategory) return;
+    try {
+      await api.delete(`/financial-categories/${pendingDeleteCategory.id}`);
+      setPendingDeleteCategory(null);
+      loadCategories();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  const categoryOptions = categories.filter((c) => c.type === form.type);
+  const filterCategoryOptions = { receita: categories.filter((c) => c.type === "receita"), despesa: categories.filter((c) => c.type === "despesa") };
+  const hasExtraFilters = !!(categoryFilter || patientFilter || statusFilter);
 
   const formFields = (
     <form onSubmit={handleSubmit} style={{ display: "grid", gap: 12 }}>
@@ -269,8 +346,8 @@ export function Financeiro() {
         <select className="input" required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
           <option value="">Selecione...</option>
           {categoryOptions.map((c) => (
-            <option key={c} value={c}>
-              {c}
+            <option key={c.id} value={c.name}>
+              {c.name}
             </option>
           ))}
         </select>
@@ -392,20 +469,26 @@ export function Financeiro() {
           <select className="input" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
             <option value="">Todas</option>
             <optgroup label="Receita">
-              {RECEITA_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {filterCategoryOptions.receita.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Despesa">
-              {DESPESA_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {filterCategoryOptions.despesa.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
                 </option>
               ))}
             </optgroup>
           </select>
+        </div>
+        <div>
+          <label className="field-label">&nbsp;</label>
+          <button className="btn-secondary" style={{ height: 40, fontSize: 12.5, display: "block" }} type="button" onClick={() => setShowCategoryManager(true)}>
+            Gerenciar categorias
+          </button>
         </div>
         <div>
           <label className="field-label">Paciente</label>
@@ -429,8 +512,53 @@ export function Financeiro() {
       </div>
 
       {transactions === null && <div className="empty-state">Carregando...</div>}
-      {transactions !== null && transactions.length === 0 && <div className="empty-state">Nenhuma movimentação no período.</div>}
-      {transactions !== null && transactions.length > 0 && (
+      {transactions !== null && transactions.length === 0 && (
+        <EmptyState
+          title="Nenhuma movimentação"
+          description={hasExtraFilters ? "Nenhum resultado com esses filtros." : "Nenhuma movimentação registrada nesse período."}
+          actionLabel="+ Nova movimentação"
+          onAction={startCreate}
+        />
+      )}
+
+      {transactions !== null && transactions.length > 0 && isMobile && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {transactions.map((t) => (
+            <div key={t.id} className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{t.description}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.category}</div>
+                </div>
+                <span className={`badge ${t.type === "receita" ? "badge-green" : "badge-red"}`}>{t.type === "receita" ? "Receita" : "Despesa"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: t.type === "receita" ? "var(--green)" : "var(--red)" }}>
+                  {t.type === "receita" ? "+" : "−"} {formatMoney(t.amount)}
+                </span>
+                <span className={`badge ${t.status === "Pago" ? "badge-green" : "badge-yellow"}`}>{t.status}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
+                {new Date(`${t.transaction_date}T12:00:00`).toLocaleDateString("pt-BR")} · {t.payment_method}
+                {t.patientName ? ` · ${t.patientName}` : ""}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => startEdit(t)}>
+                  Editar
+                </button>
+                <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => handleDuplicate(t)}>
+                  Duplicar
+                </button>
+                <button className="btn-danger" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => setPendingDelete(t)}>
+                  Excluir
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {transactions !== null && transactions.length > 0 && !isMobile && (
         <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
@@ -468,7 +596,10 @@ export function Financeiro() {
                       <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => startEdit(t)}>
                         Editar
                       </button>
-                      <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDelete(t)}>
+                      <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDuplicate(t)}>
+                        Duplicar
+                      </button>
+                      <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => setPendingDelete(t)}>
                         Excluir
                       </button>
                     </div>
@@ -479,6 +610,88 @@ export function Financeiro() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Excluir movimentação?"
+        message={pendingDelete ? `"${pendingDelete.description}" será removida.` : ""}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+
+      {showCategoryManager && (
+        <div className="modal-overlay" onClick={() => setShowCategoryManager(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Categorias</div>
+
+            <form onSubmit={handleCreateCategory} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <select className="input" style={{ maxWidth: 120 }} value={newCategoryType} onChange={(e) => setNewCategoryType(e.target.value as TransactionType)}>
+                <option value="receita">Receita</option>
+                <option value="despesa">Despesa</option>
+              </select>
+              <input className="input" placeholder="Nome da categoria" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
+              <button className="btn" type="submit" style={{ flex: "0 0 auto" }}>
+                + Add
+              </button>
+            </form>
+
+            <div style={{ maxHeight: 360, overflowY: "auto" }}>
+              {(["receita", "despesa"] as const).map((type) => (
+                <div key={type} style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }}>{type === "receita" ? "Receita" : "Despesa"}</div>
+                  {categories.filter((c) => c.type === type).length === 0 && <div className="empty-state" style={{ padding: "8px 0" }}>Nenhuma categoria ainda.</div>}
+                  {categories
+                    .filter((c) => c.type === type)
+                    .map((c) => (
+                      <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+                        {editingCategoryId === c.id ? (
+                          <>
+                            <input className="input" style={{ flex: 1 }} value={editingCategoryName} onChange={(e) => setEditingCategoryName(e.target.value)} />
+                            <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleRenameCategory(c.id)}>
+                              Salvar
+                            </button>
+                            <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => setEditingCategoryId(null)}>
+                              Cancelar
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ flex: 1, fontSize: 13 }}>{c.name}</span>
+                            <button
+                              className="btn-secondary"
+                              style={{ fontSize: 11.5, padding: "4px 8px" }}
+                              onClick={() => {
+                                setEditingCategoryId(c.id);
+                                setEditingCategoryName(c.name);
+                              }}
+                            >
+                              Editar
+                            </button>
+                            <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => setPendingDeleteCategory(c)}>
+                              Excluir
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              ))}
+            </div>
+
+            <button className="btn btn-secondary" style={{ marginTop: 6 }} onClick={() => setShowCategoryManager(false)}>
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteCategory}
+        title="Excluir categoria?"
+        message={pendingDeleteCategory ? `"${pendingDeleteCategory.name}" some das opções — movimentações já lançadas com essa categoria não são afetadas.` : ""}
+        onConfirm={confirmDeleteCategory}
+        onCancel={() => setPendingDeleteCategory(null)}
+      />
     </div>
   );
 }

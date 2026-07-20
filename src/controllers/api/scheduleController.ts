@@ -83,6 +83,26 @@ export async function cancelSchedule(req: Request, res: Response): Promise<void>
   }
 }
 
+/** Remarca uma sessao existente pra outra data/horario (move o evento no Google Calendar tambem). */
+export async function rescheduleSchedule(req: Request, res: Response): Promise<void> {
+  try {
+    const { start, durationMinutes } = req.body;
+    if (!start) {
+      res.status(400).json({ error: "start e obrigatorio." });
+      return;
+    }
+    const schedule = await schedulingService.rescheduleAppointment(req.params.id, start, durationMinutes);
+    res.json(schedule);
+  } catch (err) {
+    logger.error(SCOPE, "Erro ao remarcar agendamento", err);
+    if (err instanceof AppError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.status(500).json({ error: "Erro ao remarcar agendamento." });
+  }
+}
+
 /** Confirmacao de presenca antes da sessao acontecer. */
 export async function confirmSchedule(req: Request, res: Response): Promise<void> {
   try {

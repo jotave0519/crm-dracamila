@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { createException, deleteException, listExceptions } from "../controllers/api/businessHourExceptionController";
+import { createException, deleteException, listExceptions, updateException } from "../controllers/api/businessHourExceptionController";
 import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotController";
 import { getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
 import { getDashboard } from "../controllers/api/dashboardController";
+import { createCategory, deleteCategory, listCategories, updateCategory } from "../controllers/api/financialCategoryController";
 import { createTransaction, deleteTransaction, getMonthlyChart, getSummary, listTransactions, updateTransaction } from "../controllers/api/financialTransactionController";
 import { createInventoryItem, deleteInventoryItem, getSummary as getInventorySummary, listInventory, updateInventoryItem } from "../controllers/api/inventoryController";
 import { createMovement, listMovements } from "../controllers/api/inventoryMovementController";
@@ -11,7 +12,7 @@ import { deleteAttachment, listAttachments, uploadAttachment, uploadMiddleware }
 import { createPatient, deletePatient, getPatient, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
 import { getReminders } from "../controllers/api/reminderController";
 import { getReport } from "../controllers/api/reportController";
-import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, updateEvolutionNote, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
+import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, rescheduleSchedule, updateEvolutionNote, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
 import { getSettings, updateSettings } from "../controllers/api/settingsController";
 import { createTreatmentPlan, deleteTreatmentPlan, listByPatient as listTreatmentPlansByPatient, updateTreatmentPlan } from "../controllers/api/treatmentPlanController";
 import { createTreatmentType, deleteTreatmentType, listTreatmentTypes, updateTreatmentType } from "../controllers/api/treatmentTypeController";
@@ -47,6 +48,7 @@ apiRouter.post("/schedules", createSchedule);
 apiRouter.delete("/schedules/:id", cancelSchedule);
 apiRouter.patch("/schedules/:id/outcome", updateOutcome);
 apiRouter.patch("/schedules/:id/confirm", confirmSchedule);
+apiRouter.patch("/schedules/:id/reschedule", rescheduleSchedule);
 apiRouter.patch("/schedules/:id/treatment-plan", updateScheduleTreatmentPlan);
 apiRouter.patch("/schedules/:id/evolution-note", updateEvolutionNote);
 
@@ -65,6 +67,7 @@ apiRouter.patch("/settings", updateSettings);
 
 apiRouter.get("/business-hours/exceptions", listExceptions);
 apiRouter.post("/business-hours/exceptions", createException);
+apiRouter.patch("/business-hours/exceptions/:id", updateException);
 apiRouter.delete("/business-hours/exceptions/:id", deleteException);
 apiRouter.post("/business-hours/slots", createSlot);
 apiRouter.delete("/business-hours/slots/:id", deleteSlot);
@@ -90,3 +93,8 @@ apiRouter.patch("/financial-transactions/:id", updateTransaction);
 apiRouter.delete("/financial-transactions/:id", deleteTransaction);
 apiRouter.get("/financial-summary", getSummary);
 apiRouter.get("/financial-chart", getMonthlyChart);
+
+apiRouter.get("/financial-categories", listCategories);
+apiRouter.post("/financial-categories", createCategory);
+apiRouter.patch("/financial-categories/:id", updateCategory);
+apiRouter.delete("/financial-categories/:id", deleteCategory);

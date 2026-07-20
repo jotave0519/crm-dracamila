@@ -25,6 +25,15 @@ export async function create(params: {
   return data;
 }
 
+export async function update(
+  id: string,
+  params: Partial<{ date: string; type: "holiday" | "block" | "special"; closed: boolean; slots: string[] | null; note: string | null }>
+): Promise<BusinessHourException> {
+  const { data, error } = await getSupabaseClient().from("business_hour_exceptions").update(params).eq("id", id).select("*").single();
+  if (error) throw error;
+  return data;
+}
+
 export async function remove(id: string): Promise<void> {
   const { error } = await getSupabaseClient().from("business_hour_exceptions").delete().eq("id", id);
   if (error) throw error;

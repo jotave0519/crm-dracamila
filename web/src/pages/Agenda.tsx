@@ -1,4 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
@@ -58,13 +60,18 @@ export function Agenda() {
   const [treatmentTypes, setTreatmentTypes] = useState<TreatmentType[]>([]);
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [actionsFor, setActionsFor] = useState<ScheduleItem | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [noteFor, setNoteFor] = useState<ScheduleItem | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [patientPlans, setPatientPlans] = useState<TreatmentPlanOption[]>([]);
+  const [rescheduleFor, setRescheduleFor] = useState<ScheduleItem | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [savingReschedule, setSavingReschedule] = useState(false);
+  const [cancelFor, setCancelFor] = useState<ScheduleItem | null>(null);
 
   const days = weekDates(selectedDate);
 
@@ -96,11 +103,16 @@ export function Agenda() {
 
   const dayItems = (schedules || []).filter((s) => s.date === toIso(selectedDate)).sort((a, b) => a.time.localeCompare(b.time));
 
-  async function handleCancel(s: ScheduleItem) {
-    setOpenMenuId(null);
-    if (!window.confirm(`Cancelar a sessão de ${s.patient_name}?`)) return;
+  function handleCancel(s: ScheduleItem) {
+    setActionsFor(null);
+    setCancelFor(s);
+  }
+
+  async function confirmCancel() {
+    if (!cancelFor) return;
     try {
-      await api.delete(`/schedules/${s.id}`);
+      await api.delete(`/schedules/${cancelFor.id}`);
+      setCancelFor(null);
       load();
     } catch (e: any) {
       setError(e.message);
@@ -108,7 +120,7 @@ export function Agenda() {
   }
 
   async function handleOutcome(s: ScheduleItem, outcome: "completed" | "no_show") {
-    setOpenMenuId(null);
+    setActionsFor(null);
     try {
       await api.patch(`/schedules/${s.id}/outcome`, { outcome });
       load();
@@ -118,7 +130,7 @@ export function Agenda() {
   }
 
   async function handleConfirm(s: ScheduleItem) {
-    setOpenMenuId(null);
+    setActionsFor(null);
     try {
       await api.patch(`/schedules/${s.id}/confirm`, {});
       load();
@@ -128,9 +140,33 @@ export function Agenda() {
   }
 
   function openNoteEditor(s: ScheduleItem) {
-    setOpenMenuId(null);
+    setActionsFor(null);
     setNoteFor(s);
     setNoteDraft(s.evolution_note || "");
+  }
+
+  function openReschedule(s: ScheduleItem) {
+    setActionsFor(null);
+    setRescheduleFor(s);
+    setRescheduleDate(s.date);
+    setRescheduleTime(s.time.slice(0, 5));
+  }
+
+  async function handleReschedule(e: FormEvent) {
+    e.preventDefault();
+    if (!rescheduleFor) return;
+    setSavingReschedule(true);
+    setError(null);
+    try {
+      const start = new Date(`${rescheduleDate}T${rescheduleTime}:00-03:00`).toISOString();
+      await api.patch(`/schedules/${rescheduleFor.id}/reschedule`, { start });
+      setRescheduleFor(null);
+      load();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSavingReschedule(false);
+    }
   }
 
   async function saveNote() {
@@ -280,11 +316,14 @@ export function Agenda() {
         {formFields}
       </FormSheet>
 
-      {dayItems.length === 0 && <div className="empty-state">Nenhuma sessão nesse dia.</div>}
+      {dayItems.length === 0 && (
+        <EmptyState title="Nenhuma sessão nesse dia" description="A agenda deste dia está livre." actionLabel="+ Nova sessão" onAction={() => setShowForm(true)} />
+      )}
 
+      {dayItems.length > 0 && (
       <div className="card" style={{ padding: 0 }}>
         {dayItems.map((s) => (
-          <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "center", padding: "14px 18px 14px 14px", borderBottom: "1px solid var(--border-soft)", borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}`, position: "relative" }}>
+          <div key={s.id} style={{ display: "flex", gap: 14, alignItems: "center", padding: "14px 18px 14px 14px", borderBottom: "1px solid var(--border-soft)", borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}` }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, width: 46, flex: "0 0 46px" }}>{s.time.slice(0, 5)}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</div>
@@ -292,40 +331,93 @@ export function Agenda() {
               {s.evolution_note && <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2, fontStyle: "italic" }}>{s.evolution_note.slice(0, 80)}</div>}
             </div>
             <span className={`badge ${STATUS_BADGE[s.status]}`}>{s.status}</span>
-            <button className="mobile-icon-btn" style={{ width: 32, height: 32, flex: "0 0 32px" }} onClick={() => setOpenMenuId(openMenuId === s.id ? null : s.id)}>
+            <button className="mobile-icon-btn" style={{ width: 32, height: 32, flex: "0 0 32px" }} onClick={() => setActionsFor(s)}>
               ⋮
             </button>
-
-            {openMenuId === s.id && (
-              <div style={{ position: "absolute", top: 48, right: 14, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "var(--shadow-card)", zIndex: 5, minWidth: 200, overflow: "hidden" }}>
-                {s.status === "Agendado" && (
-                  <button style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13 }} onClick={() => handleConfirm(s)}>
-                    Confirmar presença
-                  </button>
-                )}
-                {(s.status === "Agendado" || s.status === "Confirmado") && (
-                  <>
-                    <button style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13 }} onClick={() => handleOutcome(s, "completed")}>
-                      Marcar como realizado
-                    </button>
-                    <button style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13 }} onClick={() => handleOutcome(s, "no_show")}>
-                      Marcar como faltou
-                    </button>
-                  </>
-                )}
-                <button style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13 }} onClick={() => openNoteEditor(s)}>
-                  Nota de evolução
-                </button>
-                {(s.status === "Agendado" || s.status === "Confirmado") && (
-                  <button style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 13, color: "var(--red)" }} onClick={() => handleCancel(s)}>
-                    Cancelar sessão
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         ))}
       </div>
+      )}
+
+      {actionsFor && (
+        <div className="modal-overlay" onClick={() => setActionsFor(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{actionsFor.patient_name}</div>
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16 }}>
+              {actionsFor.procedure} · {new Date(`${actionsFor.date}T12:00:00`).toLocaleDateString("pt-BR")} às {actionsFor.time.slice(0, 5)}
+            </div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {actionsFor.status === "Agendado" && (
+                <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleConfirm(actionsFor)}>
+                  Confirmar presença
+                </button>
+              )}
+              {(actionsFor.status === "Agendado" || actionsFor.status === "Confirmado") && (
+                <>
+                  <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => openReschedule(actionsFor)}>
+                    Editar sessão (remarcar)
+                  </button>
+                  <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleOutcome(actionsFor, "completed")}>
+                    Marcar como realizado
+                  </button>
+                  <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleOutcome(actionsFor, "no_show")}>
+                    Marcar como faltou
+                  </button>
+                </>
+              )}
+              <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => openNoteEditor(actionsFor)}>
+                Nota de evolução
+              </button>
+              {(actionsFor.status === "Agendado" || actionsFor.status === "Confirmado") && (
+                <button className="btn-danger" style={{ justifyContent: "flex-start" }} onClick={() => handleCancel(actionsFor)}>
+                  Cancelar sessão
+                </button>
+              )}
+              <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => setActionsFor(null)}>
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rescheduleFor && (
+        <div className="modal-overlay" onClick={() => setRescheduleFor(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Editar sessão</div>
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12 }}>
+              {rescheduleFor.patient_name} — {rescheduleFor.procedure}
+            </div>
+            <form onSubmit={handleReschedule} style={{ display: "grid", gap: 12 }}>
+              <div>
+                <label className="field-label">Data</label>
+                <input className="input" type="date" required value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+              </div>
+              <div>
+                <label className="field-label">Horário</label>
+                <input className="input" type="time" required value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button className="btn" type="submit" disabled={savingReschedule}>
+                  {savingReschedule ? "Salvando..." : "Salvar"}
+                </button>
+                <button className="btn btn-secondary" type="button" onClick={() => setRescheduleFor(null)}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!cancelFor}
+        title="Cancelar sessão?"
+        message={cancelFor ? `A sessão de ${cancelFor.patient_name} será cancelada.` : ""}
+        confirmLabel="Cancelar sessão"
+        onConfirm={confirmCancel}
+        onCancel={() => setCancelFor(null)}
+      />
 
       {noteFor && (
         <div className="modal-overlay" onClick={() => setNoteFor(null)}>

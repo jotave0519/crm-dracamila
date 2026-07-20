@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { BackHeader } from "../components/BackHeader";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmptyState } from "../components/EmptyState";
 import { api } from "../lib/api";
 
 interface Patient {
@@ -108,6 +110,7 @@ const EMPTY_FORM: Omit<Patient, "id" | "created_at"> = {
 
 export function PatientDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -124,6 +127,8 @@ export function PatientDetail() {
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState(EMPTY_PLAN_FORM);
   const [savingPlan, setSavingPlan] = useState(false);
+  const [confirm, setConfirm] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+  const [deletingPatient, setDeletingPatient] = useState(false);
 
   function load() {
     if (!id) return;
@@ -207,14 +212,39 @@ export function PatientDetail() {
     }
   }
 
-  async function handleDeletePlan(p: TreatmentPlan) {
-    if (!window.confirm("Excluir este plano de tratamento? As sessões já registradas continuam no histórico.")) return;
-    try {
-      await api.delete(`/treatment-plans/${p.id}`);
-      loadPlans();
-    } catch (e: any) {
-      setError(e.message);
-    }
+  function handleDeletePlan(p: TreatmentPlan) {
+    setConfirm({
+      title: "Excluir plano de tratamento?",
+      message: "As sessões já registradas continuam no histórico, só o plano é removido.",
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.delete(`/treatment-plans/${p.id}`);
+          loadPlans();
+        } catch (e: any) {
+          setError(e.message);
+        }
+      },
+    });
+  }
+
+  function handleDeletePatient() {
+    if (!patient) return;
+    setConfirm({
+      title: "Excluir paciente?",
+      message: `Isso remove ${patient.name || "este paciente"} e todo o histórico associado (sessões, anexos, planos). Essa ação não pode ser desfeita.`,
+      onConfirm: async () => {
+        setConfirm(null);
+        setDeletingPatient(true);
+        try {
+          await api.delete(`/patients/${id}`);
+          navigate("/pacientes");
+        } catch (e: any) {
+          setError(e.message);
+          setDeletingPatient(false);
+        }
+      },
+    });
   }
 
   function field(key: keyof typeof form) {
@@ -265,15 +295,21 @@ export function PatientDetail() {
     }
   }
 
-  async function handleDeleteAttachment(attachmentId: string) {
+  function handleDeleteAttachment(attachmentId: string) {
     if (!id) return;
-    if (!window.confirm("Excluir este anexo?")) return;
-    try {
-      await api.delete(`/patients/${id}/attachments/${attachmentId}`);
-      loadAttachments();
-    } catch (e: any) {
-      setError(e.message);
-    }
+    setConfirm({
+      title: "Excluir anexo?",
+      message: "O arquivo será removido definitivamente.",
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.delete(`/patients/${id}/attachments/${attachmentId}`);
+          loadAttachments();
+        } catch (e: any) {
+          setError(e.message);
+        }
+      },
+    });
   }
 
   if (error && !patient) return <div className="empty-state">{error}</div>;
@@ -339,6 +375,11 @@ export function PatientDetail() {
             </div>
           </div>
           {saveBar}
+          <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--border-soft)" }}>
+            <button className="btn-danger" onClick={handleDeletePatient} disabled={deletingPatient}>
+              {deletingPatient ? "Excluindo..." : "Excluir paciente"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -455,7 +496,9 @@ export function PatientDetail() {
           )}
 
           {plans === null && <div className="empty-state">Carregando...</div>}
-          {plans && plans.length === 0 && <div className="empty-state">Nenhum plano de tratamento cadastrado.</div>}
+          {plans && plans.length === 0 && (
+            <EmptyState title="Nenhum plano de tratamento" description="Crie o primeiro plano pra acompanhar sessões contratadas e progresso." actionLabel="Criar primeiro plano" onAction={startCreatePlan} />
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
             {plans?.map((p) => {
               const progress = p.total_sessions > 0 ? Math.min((p.sessionsCompleted / p.total_sessions) * 100, 100) : 0;
@@ -562,6 +605,8 @@ export function PatientDetail() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog open={!!confirm} title={confirm?.title || ""} message={confirm?.message || ""} onConfirm={() => confirm?.onConfirm()} onCancel={() => setConfirm(null)} />
     </div>
   );
 }

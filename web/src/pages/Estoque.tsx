@@ -1,4 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
@@ -76,6 +78,9 @@ export function Estoque() {
 
   const [historyFor, setHistoryFor] = useState<InventoryItem | null>(null);
   const [historyItems, setHistoryItems] = useState<Movement[] | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<InventoryItem | null>(null);
+
+  const hasActiveFilters = !!(categoryFilter || supplierFilter || search || lowStockOnly);
 
   function loadSummary() {
     api.get<Summary>("/inventory/summary").then(setSummary).catch((e) => setError(e.message));
@@ -163,10 +168,29 @@ export function Estoque() {
     }
   }
 
-  async function handleDelete(item: InventoryItem) {
-    if (!window.confirm(`Excluir "${item.name}"? O histórico de movimentação também será apagado.`)) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
     try {
-      await api.delete(`/inventory/${item.id}`);
+      await api.delete(`/inventory/${pendingDelete.id}`);
+      setPendingDelete(null);
+      refreshAfterChange();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  async function handleDuplicate(item: InventoryItem) {
+    try {
+      await api.post("/inventory", {
+        name: `${item.name} (cópia)`,
+        category: item.category,
+        quantity: 0,
+        unit: item.unit,
+        min_quantity: item.min_quantity,
+        unit_price: item.unit_price,
+        supplier: item.supplier,
+        notes: item.notes,
+      });
       refreshAfterChange();
     } catch (e: any) {
       setError(e.message);
@@ -337,8 +361,56 @@ export function Estoque() {
       </div>
 
       {items === null && <div className="empty-state">Carregando...</div>}
-      {items !== null && items.length === 0 && <div className="empty-state">Nenhum produto encontrado.</div>}
-      {items !== null && items.length > 0 && (
+      {items !== null && items.length === 0 && hasActiveFilters && <div className="empty-state">Nenhum produto encontrado com esses filtros.</div>}
+      {items !== null && items.length === 0 && !hasActiveFilters && (
+        <EmptyState title="Nenhum produto cadastrado" description="Cadastre o primeiro material ou produto da clínica." actionLabel="Cadastrar primeiro produto" onAction={startCreate} />
+      )}
+
+      {items !== null && items.length > 0 && isMobile && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {items.map((item) => {
+            const status = statusOf(item);
+            return (
+              <div key={item.id} className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{item.name}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{item.category || "Sem categoria"}</div>
+                  </div>
+                  <span className={`badge ${status.badge}`}>{status.label}</span>
+                </div>
+                <div style={{ fontSize: 13, marginTop: 10 }}>
+                  {item.quantity} {item.unit || ""} {item.min_quantity != null && <span style={{ color: "var(--text-muted)" }}>(mínimo {item.min_quantity})</span>}
+                </div>
+                {item.unit_price != null && <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>{formatMoney(item.unit_price)} / unidade</div>}
+                {item.supplier && <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>Fornecedor: {item.supplier}</div>}
+                <div style={{ fontSize: 12, color: "var(--text-faint)", marginTop: 6 }}>
+                  Última movimentação: {item.lastMovement ? `${MOVEMENT_LABEL[item.lastMovement.type]} · ${new Date(item.lastMovement.created_at).toLocaleDateString("pt-BR")}` : "—"}
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                  <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => openMovement(item)}>
+                    Movimentar
+                  </button>
+                  <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => openHistory(item)}>
+                    Histórico
+                  </button>
+                  <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => startEdit(item)}>
+                    Editar
+                  </button>
+                  <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => handleDuplicate(item)}>
+                    Duplicar
+                  </button>
+                  <button className="btn-danger" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => setPendingDelete(item)}>
+                    Excluir
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {items !== null && items.length > 0 && !isMobile && (
         <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
@@ -390,7 +462,10 @@ export function Estoque() {
                         <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => startEdit(item)}>
                           Editar
                         </button>
-                        <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDelete(item)}>
+                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDuplicate(item)}>
+                          Duplicar
+                        </button>
+                        <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => setPendingDelete(item)}>
                           Excluir
                         </button>
                       </div>
@@ -491,6 +566,14 @@ export function Estoque() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Excluir produto?"
+        message={pendingDelete ? `"${pendingDelete.name}" e todo o histórico de movimentação serão apagados.` : ""}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

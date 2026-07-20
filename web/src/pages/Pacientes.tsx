@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
@@ -103,8 +104,12 @@ export function Pacientes() {
       </FormSheet>
 
       {items === null && <div className="empty-state">Carregando...</div>}
-      {items !== null && items.length === 0 && <div className="empty-state">Nenhum paciente encontrado.</div>}
+      {items !== null && items.length === 0 && search && <div className="empty-state">Nenhum paciente encontrado para "{search}".</div>}
+      {items !== null && items.length === 0 && !search && (
+        <EmptyState title="Nenhum paciente cadastrado" description="Comece cadastrando o primeiro paciente da clínica." actionLabel="Cadastrar primeiro paciente" onAction={() => setShowForm(true)} />
+      )}
 
+      {items !== null && items.length > 0 && (
       <div className="card" style={{ padding: 0 }}>
         {items?.map((p) => (
           <div key={p.id} className="mobile-list-item" style={{ cursor: "pointer" }} onClick={() => navigate(`/pacientes/${p.id}`)}>
@@ -118,6 +123,7 @@ export function Pacientes() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

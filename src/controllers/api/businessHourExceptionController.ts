@@ -31,6 +31,17 @@ export async function createException(req: Request, res: Response): Promise<void
   }
 }
 
+export async function updateException(req: Request, res: Response): Promise<void> {
+  try {
+    const item = await businessHourExceptionRepository.update(req.params.id, req.body);
+    businessHoursService.invalidateCache();
+    res.json(item);
+  } catch (err) {
+    logger.error(SCOPE, "Erro ao atualizar excecao de horario", err);
+    res.status(500).json({ error: "Erro ao atualizar excecao de horario." });
+  }
+}
+
 export async function deleteException(req: Request, res: Response): Promise<void> {
   try {
     await businessHourExceptionRepository.remove(req.params.id);

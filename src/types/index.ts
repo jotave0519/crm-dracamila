@@ -95,6 +95,13 @@ export interface FinancialTransaction {
   updated_at: string;
 }
 
+export interface FinancialCategory {
+  id: string;
+  type: FinancialTransactionType;
+  name: string;
+  created_at: string;
+}
+
 export interface PatientAttachment {
   id: string;
   user_id: string;

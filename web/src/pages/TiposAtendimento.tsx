@@ -1,4 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
@@ -33,6 +35,7 @@ export function TiposAtendimento() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<TreatmentType | null>(null);
 
   function load() {
     api.get<{ items: TreatmentType[] }>("/treatment-types").then((r) => setItems(r.items)).catch((e) => setError(e.message));
@@ -95,10 +98,32 @@ export function TiposAtendimento() {
     }
   }
 
-  async function handleDelete(t: TreatmentType) {
-    if (!window.confirm(`Excluir "${t.name}"?`)) return;
+  async function confirmDelete() {
+    if (!pendingDelete) return;
     try {
-      await api.delete(`/treatment-types/${t.id}`);
+      await api.delete(`/treatment-types/${pendingDelete.id}`);
+      setPendingDelete(null);
+      load();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  async function handleDuplicate(t: TreatmentType) {
+    try {
+      await api.post("/treatment-types", {
+        name: `${t.name} (cópia)`,
+        category: t.category,
+        price: t.price,
+        duration_minutes: t.duration_minutes,
+        description: t.description,
+        notes: t.notes,
+        pre_instructions: t.pre_instructions,
+        post_instructions: t.post_instructions,
+        color: t.color,
+        materials_used: t.materials_used,
+        active: t.active,
+      });
       load();
     } catch (e: any) {
       setError(e.message);
@@ -181,7 +206,9 @@ export function TiposAtendimento() {
       </FormSheet>
 
       {items === null && <div className="empty-state">Carregando...</div>}
-      {items !== null && items.length === 0 && <div className="empty-state">Nenhum tipo de atendimento cadastrado.</div>}
+      {items !== null && items.length === 0 && (
+        <EmptyState title="Nenhum tipo de atendimento" description="Cadastre o primeiro serviço oferecido pela clínica." actionLabel="Cadastrar primeiro tipo" onAction={startCreate} />
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
         {items?.map((t) => (
@@ -198,17 +225,28 @@ export function TiposAtendimento() {
             </div>
             {t.description && <div style={{ fontSize: 12.5, marginTop: 8 }}>{t.description}</div>}
             {t.materials_used && <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 6 }}>Materiais: {t.materials_used}</div>}
-            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               <button className="btn btn-secondary" style={{ flex: 1, height: 34, fontSize: 12.5 }} onClick={() => startEdit(t)}>
                 Editar
               </button>
-              <button className="btn-danger" style={{ flex: 1, height: 34, fontSize: 12.5 }} onClick={() => handleDelete(t)}>
+              <button className="btn btn-secondary" style={{ flex: 1, height: 34, fontSize: 12.5 }} onClick={() => handleDuplicate(t)}>
+                Duplicar
+              </button>
+              <button className="btn-danger" style={{ flex: 1, height: 34, fontSize: 12.5 }} onClick={() => setPendingDelete(t)}>
                 Excluir
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Excluir tipo de atendimento?"
+        message={pendingDelete ? `"${pendingDelete.name}" será removido do catálogo.` : ""}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
