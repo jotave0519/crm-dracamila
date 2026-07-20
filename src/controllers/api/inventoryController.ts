@@ -1,16 +1,13 @@
 import { Request, Response } from "express";
 import * as inventoryMovementRepository from "../../repositories/inventoryMovementRepository";
 import * as inventoryRepository from "../../repositories/inventoryRepository";
+import { isLowStock } from "../../repositories/inventoryRepository";
 import { logger } from "../../utils/logger";
 
 const SCOPE = "api.inventory";
 
 function strParam(v: unknown): string | undefined {
   return typeof v === "string" && v.length > 0 ? v : undefined;
-}
-
-function isLowStock(item: { quantity: number; min_quantity: number | null }): boolean {
-  return item.min_quantity != null && item.quantity <= item.min_quantity;
 }
 
 export async function listInventory(req: Request, res: Response): Promise<void> {

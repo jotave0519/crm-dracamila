@@ -13,7 +13,7 @@ interface Patient {
   created_at: string;
 }
 
-const EMPTY_FORM = { name: "", phone: "", email: "" };
+const EMPTY_FORM = { name: "", phone: "", email: "", birth_date: "" };
 
 export function Pacientes() {
   const isMobile = useIsMobile();
@@ -41,7 +41,7 @@ export function Pacientes() {
     setSaving(true);
     setError(null);
     try {
-      await api.post("/patients", form);
+      await api.post("/patients", { ...form, birth_date: form.birth_date || null });
       setShowForm(false);
       setForm(EMPTY_FORM);
       load();
@@ -66,6 +66,10 @@ export function Pacientes() {
       <div>
         <label className="field-label">E-mail</label>
         <input className="input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+      </div>
+      <div>
+        <label className="field-label">Data de nascimento</label>
+        <input className="input" type="date" value={form.birth_date} onChange={(e) => setForm({ ...form, birth_date: e.target.value })} />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <button className="btn" type="submit" disabled={saving}>

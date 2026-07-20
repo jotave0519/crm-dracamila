@@ -122,6 +122,32 @@ export async function countCompletedInMonth(startDate: string, endDate: string):
   return count ?? 0;
 }
 
+/** Usado pelo Dashboard: sessoes nao-canceladas na semana. */
+export async function countInWeek(startDate: string, endDate: string): Promise<number> {
+  const { count, error } = await getSupabaseClient()
+    .from("schedules")
+    .select("*", { count: "exact", head: true })
+    .neq("status", "Cancelado")
+    .gte("date", startDate)
+    .lte("date", endDate);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Usado pelo Dashboard: proximos retornos (sessoes futuras ja agendadas/confirmadas). */
+export async function findUpcoming(afterDate: string, limit = 5): Promise<Schedule[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("schedules")
+    .select("*")
+    .in("status", ["Agendado", "Confirmado"])
+    .gt("date", afterDate)
+    .order("date", { ascending: true })
+    .order("time", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 /** Usado pelo Dashboard. */
 export async function findRecentCompleted(limit = 5): Promise<Schedule[]> {
   const { data, error } = await getSupabaseClient()

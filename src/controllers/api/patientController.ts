@@ -51,12 +51,12 @@ export async function getPatientHistory(req: Request, res: Response): Promise<vo
 
 export async function createPatient(req: Request, res: Response): Promise<void> {
   try {
-    const { name, phone, email } = req.body;
+    const { name, phone, email, birth_date } = req.body;
     if (!name || !phone) {
       res.status(400).json({ error: "name e phone sao obrigatorios." });
       return;
     }
-    const patient = await userRepository.createPatient({ name, phone, email });
+    const patient = await userRepository.createPatient({ name, phone, email, birth_date });
     res.status(201).json(patient);
   } catch (err) {
     logger.error(SCOPE, "Erro ao criar paciente", err);
@@ -68,6 +68,7 @@ const UPDATABLE_FIELDS = [
   "name",
   "phone",
   "email",
+  "birth_date",
   "active",
   "do_not_contact",
   "profession",

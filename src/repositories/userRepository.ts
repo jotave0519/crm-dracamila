@@ -42,8 +42,12 @@ export async function listAll(params: { search?: string; limit?: number; offset?
   return { items: data || [], total: count ?? 0 };
 }
 
-export async function createPatient(params: { name: string; phone: string; email?: string | null }): Promise<User> {
-  const { data, error } = await getSupabaseClient().from("users").insert({ name: params.name, phone: params.phone, email: params.email ?? null }).select("*").single();
+export async function createPatient(params: { name: string; phone: string; email?: string | null; birth_date?: string | null }): Promise<User> {
+  const { data, error } = await getSupabaseClient()
+    .from("users")
+    .insert({ name: params.name, phone: params.phone, email: params.email ?? null, birth_date: params.birth_date ?? null })
+    .select("*")
+    .single();
   if (error) throw error;
   return data;
 }
@@ -60,6 +64,20 @@ export async function countNewInMonth(startDate: string, endDate: string): Promi
   return count ?? 0;
 }
 
+/** Usado pelo Dashboard: novos pacientes por mes (grafico). */
+export async function listCreatedSince(startDate: string): Promise<{ created_at: string }[]> {
+  const { data, error } = await getSupabaseClient().from("users").select("created_at").gte("created_at", startDate);
+  if (error) throw error;
+  return data || [];
+}
+
+/** Usado pelo Dashboard: aniversariantes do mes (filtrado em JS pois o Supabase JS builder nao tem extract()). */
+export async function listBirthdaysInMonth(month: number): Promise<{ id: string; name: string; birth_date: string }[]> {
+  const { data, error } = await getSupabaseClient().from("users").select("id, name, birth_date").eq("active", true).not("birth_date", "is", null);
+  if (error) throw error;
+  return ((data || []) as { id: string; name: string; birth_date: string }[]).filter((row) => Number(row.birth_date.slice(5, 7)) === month);
+}
+
 export async function deleteUser(id: string): Promise<void> {
   const { error } = await getSupabaseClient().from("users").delete().eq("id", id);
   if (error) throw error;
@@ -71,6 +89,7 @@ export async function updatePatient(
     name: string;
     phone: string;
     email: string | null;
+    birth_date: string | null;
     active: boolean;
     do_not_contact: boolean;
     profession: string | null;

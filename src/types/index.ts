@@ -3,6 +3,7 @@ export interface User {
   name: string;
   phone: string;
   email: string | null;
+  birth_date: string | null;
   active: boolean;
   do_not_contact: boolean;
   profession: string | null;

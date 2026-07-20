@@ -1,6 +1,16 @@
 import { getSupabaseClient } from "../integrations/supabaseClient";
 import { InventoryItem } from "../types";
 
+export function isLowStock(item: { quantity: number; min_quantity: number | null }): boolean {
+  return item.min_quantity != null && item.quantity <= item.min_quantity;
+}
+
+/** Usado pelo Dashboard: quantidade de itens com estoque baixo ou zerado. */
+export async function countLowStock(): Promise<number> {
+  const items = await listAll();
+  return items.filter((item) => item.quantity <= 0 || isLowStock(item)).length;
+}
+
 export async function listAll(): Promise<InventoryItem[]> {
   const { data, error } = await getSupabaseClient().from("inventory_items").select("*").order("name", { ascending: true });
   if (error) throw error;

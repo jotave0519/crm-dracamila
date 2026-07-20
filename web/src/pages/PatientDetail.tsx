@@ -10,6 +10,7 @@ interface Patient {
   name: string;
   phone: string;
   email: string | null;
+  birth_date: string | null;
   created_at: string;
   profession: string | null;
   health_insurance: string | null;
@@ -147,6 +148,7 @@ const EMPTY_FORM: Omit<Patient, "id" | "created_at"> = {
   name: "",
   phone: "",
   email: "",
+  birth_date: "",
   profession: "",
   health_insurance: "",
   emergency_contact_name: "",
@@ -481,7 +483,11 @@ export function PatientDetail() {
     setSaved(false);
     setError(null);
     try {
-      const payload = { ...form, pain_scale: form.pain_scale === null || form.pain_scale === ("" as any) ? null : Number(form.pain_scale) };
+      const payload = {
+        ...form,
+        birth_date: form.birth_date || null,
+        pain_scale: form.pain_scale === null || form.pain_scale === ("" as any) ? null : Number(form.pain_scale),
+      };
       const updated = await api.patch<Patient>(`/patients/${id}`, payload);
       setPatient(updated);
       setSaved(true);
@@ -572,6 +578,10 @@ export function PatientDetail() {
             <div>
               <label className="field-label">E-mail</label>
               <input className="input" value={field("email")} onChange={(e) => setField("email", e.target.value)} />
+            </div>
+            <div>
+              <label className="field-label">Data de nascimento</label>
+              <input className="input" type="date" value={field("birth_date")} onChange={(e) => setField("birth_date", e.target.value)} />
             </div>
             <div>
               <label className="field-label">Profissão</label>

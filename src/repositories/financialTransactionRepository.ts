@@ -98,6 +98,13 @@ export async function sumRevenuePaidInRange(from: string, to: string): Promise<n
   return (data || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
 }
 
+/** Usado pelo Dashboard principal: despesas pagas do periodo. */
+export async function sumExpensesPaidInRange(from: string, to: string): Promise<number> {
+  const { data, error } = await getSupabaseClient().from("financial_transactions").select("amount").eq("type", "despesa").eq("status", "Pago").gte("transaction_date", from).lte("transaction_date", to);
+  if (error) throw error;
+  return (data || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
+}
+
 /** Usado pelos Lembretes: receitas pendentes, com paciente. */
 export async function listPendingRevenue(): Promise<{ id: string; patient_id: string | null; amount: number; users: { name: string; phone: string } | null }[]> {
   const { data, error } = await getSupabaseClient().from("financial_transactions").select("id, patient_id, amount, users(name, phone)").eq("type", "receita").eq("status", "Pendente").not("patient_id", "is", null);
