@@ -132,9 +132,24 @@ export interface InventoryItem {
   quantity: number;
   unit: string | null;
   min_quantity: number | null;
+  unit_price: number | null;
+  supplier: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type InventoryMovementType = "entrada" | "saida" | "ajuste" | "consumo_interno";
+
+export interface InventoryMovement {
+  id: string;
+  item_id: string;
+  type: InventoryMovementType;
+  quantity: number;
+  supplier: string | null;
+  staff_id: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface BusinessHourRow {

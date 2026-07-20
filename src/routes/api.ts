@@ -4,7 +4,8 @@ import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotContr
 import { getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
 import { getDashboard } from "../controllers/api/dashboardController";
 import { createTransaction, deleteTransaction, getMonthlyChart, getSummary, listTransactions, updateTransaction } from "../controllers/api/financialTransactionController";
-import { createInventoryItem, deleteInventoryItem, listInventory, updateInventoryItem } from "../controllers/api/inventoryController";
+import { createInventoryItem, deleteInventoryItem, getSummary as getInventorySummary, listInventory, updateInventoryItem } from "../controllers/api/inventoryController";
+import { createMovement, listMovements } from "../controllers/api/inventoryMovementController";
 import { getMe } from "../controllers/api/meController";
 import { deleteAttachment, listAttachments, uploadAttachment, uploadMiddleware } from "../controllers/api/patientAttachmentController";
 import { createPatient, deletePatient, getPatient, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
@@ -72,10 +73,13 @@ apiRouter.get("/whatsapp/status", getStatus);
 apiRouter.get("/whatsapp/qrcode", getQrCode);
 apiRouter.post("/whatsapp/disconnect", disconnect);
 
+apiRouter.get("/inventory/summary", getInventorySummary);
 apiRouter.get("/inventory", listInventory);
 apiRouter.post("/inventory", createInventoryItem);
 apiRouter.patch("/inventory/:id", updateInventoryItem);
 apiRouter.delete("/inventory/:id", deleteInventoryItem);
+apiRouter.get("/inventory/:id/movements", listMovements);
+apiRouter.post("/inventory/:id/movements", createMovement);
 
 apiRouter.get("/reminders", getReminders);
 apiRouter.get("/reports", getReport);

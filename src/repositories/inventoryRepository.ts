@@ -7,6 +7,22 @@ export async function listAll(): Promise<InventoryItem[]> {
   return data || [];
 }
 
+export async function list(filters: { category?: string; supplier?: string; search?: string }): Promise<InventoryItem[]> {
+  let query = getSupabaseClient().from("inventory_items").select("*").order("name", { ascending: true });
+  if (filters.category) query = query.eq("category", filters.category);
+  if (filters.supplier) query = query.eq("supplier", filters.supplier);
+  if (filters.search) query = query.ilike("name", `%${filters.search}%`);
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function findById(id: string): Promise<InventoryItem | null> {
+  const { data, error } = await getSupabaseClient().from("inventory_items").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function create(
   params: Partial<Omit<InventoryItem, "id" | "created_at" | "updated_at">> & { name: string }
 ): Promise<InventoryItem> {
