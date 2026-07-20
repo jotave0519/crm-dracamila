@@ -128,18 +128,6 @@ export async function countCompletedInMonth(startDate: string, endDate: string):
   return count ?? 0;
 }
 
-/** Usado pelo Dashboard: linhas concluidas no mes com o preco do tipo de atendimento, pra somar receita estimada. */
-export async function findRevenueRowsInMonth(startDate: string, endDate: string): Promise<{ treatment_types: { price: number | null } | null }[]> {
-  const { data, error } = await getSupabaseClient()
-    .from("schedules")
-    .select("treatment_types(price)")
-    .eq("status", "Concluido")
-    .gte("date", startDate)
-    .lt("date", endDate);
-  if (error) throw error;
-  return (data as any) || [];
-}
-
 /** Usado pelo Dashboard. */
 export async function findRecentCompleted(limit = 5): Promise<Schedule[]> {
   const { data, error } = await getSupabaseClient()

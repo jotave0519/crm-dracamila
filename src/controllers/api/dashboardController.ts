@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import * as financialTransactionRepository from "../../repositories/financialTransactionRepository";
 import * as scheduleRepository from "../../repositories/scheduleRepository";
 import * as userRepository from "../../repositories/userRepository";
 import { logger } from "../../utils/logger";
@@ -23,6 +24,13 @@ function daysAgo(now: Date, days: number): string {
   return d.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
 }
 
+/** monthEnd (de monthBounds) e exclusivo (1o dia do mes seguinte) - subtrai 1 dia pra usar com filtros inclusivos (lte). */
+function inclusiveEnd(exclusiveEnd: string): string {
+  const d = new Date(`${exclusiveEnd}T00:00:00`);
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function getDashboard(_req: Request, res: Response): Promise<void> {
   try {
     const now = new Date();
@@ -30,18 +38,16 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
     const currentTime = now.toLocaleTimeString("en-GB", { timeZone: TIMEZONE, hour12: false });
     const { start: monthStart, end: monthEnd } = monthBounds(now);
 
-    const [todayAppointments, nextAppointment, activePatients, sessionsThisMonth, revenueRows, newPatientsThisMonth, patientsInTreatment, recentSessions] = await Promise.all([
+    const [todayAppointments, nextAppointment, activePatients, sessionsThisMonth, revenueThisMonth, newPatientsThisMonth, patientsInTreatment, recentSessions] = await Promise.all([
       scheduleRepository.findAllByDate(today),
       scheduleRepository.findNextUpcoming(today, currentTime),
       userRepository.countActive(),
       scheduleRepository.countCompletedInMonth(monthStart, monthEnd),
-      scheduleRepository.findRevenueRowsInMonth(monthStart, monthEnd),
+      financialTransactionRepository.sumRevenuePaidInRange(monthStart, inclusiveEnd(monthEnd)),
       userRepository.countNewInMonth(monthStart, monthEnd),
       scheduleRepository.countDistinctUsersInTreatment(daysAgo(now, 30)),
       scheduleRepository.findRecentCompleted(5),
     ]);
-
-    const revenueThisMonth = revenueRows.reduce((sum, row) => sum + (row.treatment_types?.price ?? 0), 0);
 
     res.json({
       kpis: {

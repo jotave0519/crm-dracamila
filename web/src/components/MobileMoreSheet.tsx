@@ -5,6 +5,7 @@ import { LogOutIcon, XIcon } from "./icons";
 const ITEMS = [
   { to: "/tipos-atendimento", label: "Tipos de Atendimento" },
   { to: "/horarios-clinica", label: "Horários da Clínica" },
+  { to: "/financeiro", label: "Financeiro" },
   { to: "/estoque", label: "Estoque" },
   { to: "/lembretes", label: "Lembretes" },
   { to: "/relatorios", label: "Relatórios" },

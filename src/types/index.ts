@@ -77,15 +77,22 @@ export interface TreatmentPlan {
   updated_at: string;
 }
 
-export interface Payment {
+export type FinancialTransactionType = "receita" | "despesa";
+export type FinancialTransactionStatus = "Pago" | "Pendente";
+
+export interface FinancialTransaction {
   id: string;
-  user_id: string;
-  treatment_plan_id: string | null;
+  type: FinancialTransactionType;
+  description: string;
+  category: string;
+  patient_id: string | null;
+  payment_method: string;
+  transaction_date: string;
   amount: number;
-  payment_date: string;
-  method: string | null;
+  status: FinancialTransactionStatus;
   notes: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export interface PatientAttachment {

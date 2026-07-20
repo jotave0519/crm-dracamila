@@ -66,15 +66,6 @@ interface TreatmentPlan {
   sessionsRemaining: number;
 }
 
-interface Payment {
-  id: string;
-  treatment_plan_id: string | null;
-  amount: number;
-  payment_date: string;
-  method: string | null;
-  notes: string | null;
-}
-
 const STATUS_BADGE: Record<string, string> = { Agendado: "badge-blue", Confirmado: "badge-yellow", Concluido: "badge-green", Faltou: "badge-red", Cancelado: "badge-neutral" };
 const PLAN_STATUS_BADGE: Record<string, string> = { ativo: "badge-blue", concluido: "badge-green", cancelado: "badge-neutral" };
 
@@ -83,19 +74,17 @@ function formatMoney(v: number | null): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "resumo" | "clinico" | "avaliacao" | "plano" | "financeiro" | "anexos" | "sessoes";
+type Tab = "resumo" | "clinico" | "avaliacao" | "plano" | "anexos" | "sessoes";
 const TABS: { id: Tab; label: string }[] = [
   { id: "resumo", label: "Resumo" },
   { id: "clinico", label: "Histórico Clínico" },
   { id: "avaliacao", label: "Avaliação Física" },
   { id: "plano", label: "Plano de Tratamento" },
-  { id: "financeiro", label: "Financeiro" },
   { id: "anexos", label: "Anexos" },
   { id: "sessoes", label: "Sessões" },
 ];
 
 const EMPTY_PLAN_FORM = { treatment_type_id: "", total_sessions: "10", total_price: "", start_date: "", goal: "", status: "ativo" as TreatmentPlan["status"], notes: "" };
-const EMPTY_PAYMENT_FORM = { amount: "", payment_date: new Date().toLocaleDateString("en-CA"), method: "", treatment_plan_id: "", notes: "" };
 
 const EMPTY_FORM: Omit<Patient, "id" | "created_at"> = {
   name: "",
@@ -135,10 +124,6 @@ export function PatientDetail() {
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState(EMPTY_PLAN_FORM);
   const [savingPlan, setSavingPlan] = useState(false);
-  const [payments, setPayments] = useState<Payment[] | null>(null);
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [paymentForm, setPaymentForm] = useState(EMPTY_PAYMENT_FORM);
-  const [savingPayment, setSavingPayment] = useState(false);
 
   function load() {
     if (!id) return;
@@ -162,19 +147,13 @@ export function PatientDetail() {
     api.get<{ items: TreatmentPlan[] }>(`/patients/${id}/treatment-plans`).then((r) => setPlans(r.items)).catch((e) => setError(e.message));
   }
 
-  function loadPayments() {
-    if (!id) return;
-    api.get<{ items: Payment[] }>(`/patients/${id}/payments`).then((r) => setPayments(r.items)).catch((e) => setError(e.message));
-  }
-
   useEffect(load, [id]);
   useEffect(() => {
     api.get<{ items: TreatmentTypeOption[] }>("/treatment-types").then((r) => setTreatmentTypes(r.items));
   }, []);
   useEffect(() => {
     if (tab === "anexos" && attachments === null) loadAttachments();
-    if ((tab === "plano" || tab === "financeiro") && plans === null) loadPlans();
-    if (tab === "financeiro" && payments === null) loadPayments();
+    if (tab === "plano" && plans === null) loadPlans();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
@@ -233,39 +212,6 @@ export function PatientDetail() {
     try {
       await api.delete(`/treatment-plans/${p.id}`);
       loadPlans();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }
-
-  async function handleSavePayment(e: FormEvent) {
-    e.preventDefault();
-    if (!id) return;
-    setSavingPayment(true);
-    setError(null);
-    try {
-      await api.post(`/patients/${id}/payments`, {
-        amount: Number(paymentForm.amount),
-        payment_date: paymentForm.payment_date || null,
-        method: paymentForm.method || null,
-        treatment_plan_id: paymentForm.treatment_plan_id || null,
-        notes: paymentForm.notes || null,
-      });
-      setShowPaymentForm(false);
-      setPaymentForm(EMPTY_PAYMENT_FORM);
-      loadPayments();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSavingPayment(false);
-    }
-  }
-
-  async function handleDeletePayment(paymentId: string) {
-    if (!window.confirm("Excluir este pagamento?")) return;
-    try {
-      await api.delete(`/payments/${paymentId}`);
-      loadPayments();
     } catch (e: any) {
       setError(e.message);
     }
@@ -539,97 +485,6 @@ export function PatientDetail() {
               );
             })}
           </div>
-        </div>
-      )}
-
-      {tab === "financeiro" && (
-        <div>
-          <div className="kpi-grid" style={{ marginBottom: 20 }}>
-            <div className="card">
-              <div className="kpi-value">{formatMoney((payments || []).reduce((sum, p) => sum + Number(p.amount), 0))}</div>
-              <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Total pago</div>
-            </div>
-            {(plans || [])
-              .filter((p) => p.total_price != null)
-              .map((p) => {
-                const paid = (payments || []).filter((pay) => pay.treatment_plan_id === p.id).reduce((sum, pay) => sum + Number(pay.amount), 0);
-                const pending = Math.max((p.total_price || 0) - paid, 0);
-                return (
-                  <div className="card" key={p.id}>
-                    <div className="kpi-value">{formatMoney(pending)}</div>
-                    <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Pendente — {treatmentTypeName(p.treatment_type_id)}</div>
-                  </div>
-                );
-              })}
-          </div>
-
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-            <button className="btn" onClick={() => setShowPaymentForm(true)}>
-              + Novo pagamento
-            </button>
-          </div>
-
-          {showPaymentForm && (
-            <div className="card" style={{ maxWidth: 480, marginBottom: 20 }}>
-              <form onSubmit={handleSavePayment} style={{ display: "grid", gap: 12 }}>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <label className="field-label">Valor</label>
-                    <input className="input" type="number" step="0.01" required value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <label className="field-label">Data</label>
-                    <input className="input" type="date" value={paymentForm.payment_date} onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })} />
-                  </div>
-                </div>
-                <div>
-                  <label className="field-label">Forma de pagamento</label>
-                  <input className="input" placeholder="Pix, dinheiro, cartão..." value={paymentForm.method} onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })} />
-                </div>
-                <div>
-                  <label className="field-label">Plano de tratamento (opcional)</label>
-                  <select className="input" value={paymentForm.treatment_plan_id} onChange={(e) => setPaymentForm({ ...paymentForm, treatment_plan_id: e.target.value })}>
-                    <option value="">Pagamento avulso</option>
-                    {plans?.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {treatmentTypeName(p.treatment_type_id)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ display: "flex", gap: 10 }}>
-                  <button className="btn" type="submit" disabled={savingPayment}>
-                    {savingPayment ? "Salvando..." : "Salvar"}
-                  </button>
-                  <button className="btn btn-secondary" type="button" onClick={() => setShowPaymentForm(false)}>
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {payments === null && <div className="empty-state">Carregando...</div>}
-          {payments && payments.length === 0 && <div className="empty-state">Nenhum pagamento registrado ainda.</div>}
-          {payments && payments.length > 0 && (
-            <div className="card" style={{ padding: 0 }}>
-              {payments.map((p) => (
-                <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "14px 18px", borderBottom: "1px solid var(--border-soft)" }}>
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{formatMoney(p.amount)}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                      {new Date(`${p.payment_date}T12:00:00`).toLocaleDateString("pt-BR")}
-                      {p.method ? ` · ${p.method}` : ""}
-                      {p.treatment_plan_id ? ` · ${treatmentTypeName(plans?.find((pl) => pl.id === p.treatment_plan_id)?.treatment_type_id || null)}` : " · avulso"}
-                    </div>
-                  </div>
-                  <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDeletePayment(p.id)}>
-                    Excluir
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 

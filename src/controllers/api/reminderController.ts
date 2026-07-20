@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as paymentRepository from "../../repositories/paymentRepository";
+import * as financialTransactionRepository from "../../repositories/financialTransactionRepository";
 import * as scheduleRepository from "../../repositories/scheduleRepository";
 import * as settingsRepository from "../../repositories/settingsRepository";
 import * as treatmentPlanRepository from "../../repositories/treatmentPlanRepository";
@@ -25,13 +25,14 @@ export async function getReminders(_req: Request, res: Response): Promise<void> 
     const today = todayIso();
     const tomorrow = tomorrowIso();
 
-    const [clinicSettings, activePatients, lastActivity, upcomingUserIds, activePlans, tomorrowSchedules] = await Promise.all([
+    const [clinicSettings, activePatients, lastActivity, upcomingUserIds, activePlans, tomorrowSchedules, pendingRevenue] = await Promise.all([
       settingsRepository.getClinicSettings(),
       userRepository.listAll({ limit: 1000 }),
       scheduleRepository.findLastActivityPerUser(today),
       scheduleRepository.findUserIdsWithUpcoming(today),
       treatmentPlanRepository.listActiveWithCompletedCount(),
       scheduleRepository.findAllByDate(tomorrow),
+      financialTransactionRepository.listPendingRevenue(),
     ]);
 
     const thresholdMs = clinicSettings.days_without_return_threshold * DAY_MS;
@@ -48,16 +49,11 @@ export async function getReminders(_req: Request, res: Response): Promise<void> 
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
-    const planIds = activePlans.map((p) => p.id);
-    const paidByPlan = await paymentRepository.sumByPlans(planIds);
-
     const finishedTreatments = activePlans
       .filter((p) => p.sessionsCompleted >= p.total_sessions)
       .map((p) => ({ planId: p.id, patientId: p.user_id, patientName: p.patientName, phone: p.patientPhone, totalSessions: p.total_sessions }));
 
-    const pendingPayments = activePlans
-      .filter((p) => p.total_price != null && p.total_price - (paidByPlan[p.id] || 0) > 0)
-      .map((p) => ({ planId: p.id, patientId: p.user_id, patientName: p.patientName, phone: p.patientPhone, pending: (p.total_price as number) - (paidByPlan[p.id] || 0) }));
+    const pendingPayments = pendingRevenue.map((t) => ({ transactionId: t.id, patientId: t.patient_id as string, patientName: t.users?.name ?? null, phone: t.users?.phone ?? null, pending: Number(t.amount) }));
 
     const tomorrowSessions = tomorrowSchedules
       .filter((s) => s.status === "Agendado" || s.status === "Confirmado")

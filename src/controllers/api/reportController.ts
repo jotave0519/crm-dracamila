@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import * as paymentRepository from "../../repositories/paymentRepository";
+import * as financialTransactionRepository from "../../repositories/financialTransactionRepository";
 import * as scheduleRepository from "../../repositories/scheduleRepository";
 import * as userRepository from "../../repositories/userRepository";
 import { logger } from "../../utils/logger";
@@ -22,7 +22,7 @@ export async function getReport(req: Request, res: Response): Promise<void> {
     }
 
     const [revenue, activePatients, newPatients, schedules] = await Promise.all([
-      paymentRepository.sumInRange(from, to),
+      financialTransactionRepository.sumRevenuePaidInRange(from, to),
       userRepository.countActive(),
       userRepository.countNewInMonth(from, nextDay(to)),
       scheduleRepository.listAllInRange(from, to),

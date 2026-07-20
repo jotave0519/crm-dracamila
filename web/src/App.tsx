@@ -8,6 +8,7 @@ import { Configuracoes } from "./pages/Configuracoes";
 import { Conversas } from "./pages/Conversas";
 import { Dashboard } from "./pages/Dashboard";
 import { Estoque } from "./pages/Estoque";
+import { Financeiro } from "./pages/Financeiro";
 import { HorariosClinica } from "./pages/HorariosClinica";
 import { Lembretes } from "./pages/Lembretes";
 import { Login } from "./pages/Login";
@@ -32,6 +33,7 @@ export function App() {
                 <Route path="/conversas" element={<Conversas />} />
                 <Route path="/tipos-atendimento" element={<TiposAtendimento />} />
                 <Route path="/horarios-clinica" element={<HorariosClinica />} />
+                <Route path="/financeiro" element={<Financeiro />} />
                 <Route path="/estoque" element={<Estoque />} />
                 <Route path="/lembretes" element={<Lembretes />} />
                 <Route path="/relatorios" element={<Relatorios />} />

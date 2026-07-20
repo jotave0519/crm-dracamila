@@ -3,11 +3,11 @@ import { createException, deleteException, listExceptions } from "../controllers
 import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotController";
 import { getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
 import { getDashboard } from "../controllers/api/dashboardController";
+import { createTransaction, deleteTransaction, getMonthlyChart, getSummary, listTransactions, updateTransaction } from "../controllers/api/financialTransactionController";
 import { createInventoryItem, deleteInventoryItem, listInventory, updateInventoryItem } from "../controllers/api/inventoryController";
 import { getMe } from "../controllers/api/meController";
 import { deleteAttachment, listAttachments, uploadAttachment, uploadMiddleware } from "../controllers/api/patientAttachmentController";
 import { createPatient, deletePatient, getPatient, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
-import { createPayment, deletePayment, listByPatient as listPaymentsByPatient } from "../controllers/api/paymentController";
 import { getReminders } from "../controllers/api/reminderController";
 import { getReport } from "../controllers/api/reportController";
 import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, updateEvolutionNote, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
@@ -40,10 +40,6 @@ apiRouter.get("/patients/:id/treatment-plans", listTreatmentPlansByPatient);
 apiRouter.post("/patients/:id/treatment-plans", createTreatmentPlan);
 apiRouter.patch("/treatment-plans/:id", updateTreatmentPlan);
 apiRouter.delete("/treatment-plans/:id", deleteTreatmentPlan);
-
-apiRouter.get("/patients/:id/payments", listPaymentsByPatient);
-apiRouter.post("/patients/:id/payments", createPayment);
-apiRouter.delete("/payments/:paymentId", deletePayment);
 
 apiRouter.get("/schedules", listSchedules);
 apiRouter.post("/schedules", createSchedule);
@@ -83,3 +79,10 @@ apiRouter.delete("/inventory/:id", deleteInventoryItem);
 
 apiRouter.get("/reminders", getReminders);
 apiRouter.get("/reports", getReport);
+
+apiRouter.get("/financial-transactions", listTransactions);
+apiRouter.post("/financial-transactions", createTransaction);
+apiRouter.patch("/financial-transactions/:id", updateTransaction);
+apiRouter.delete("/financial-transactions/:id", deleteTransaction);
+apiRouter.get("/financial-summary", getSummary);
+apiRouter.get("/financial-chart", getMonthlyChart);
