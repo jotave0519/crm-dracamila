@@ -62,3 +62,28 @@ export async function countCompletedSessions(planId: string): Promise<number> {
   if (error) throw error;
   return count ?? 0;
 }
+
+export interface ActivePlanWithPatient extends TreatmentPlan {
+  sessionsCompleted: number;
+  patientName: string | null;
+  patientPhone: string | null;
+}
+
+/** Usado pelos Lembretes: todos os planos ativos de todos os pacientes, com contagem de sessoes em lote (sem N+1). */
+export async function listActiveWithCompletedCount(): Promise<ActivePlanWithPatient[]> {
+  const { data: plans, error } = await getSupabaseClient().from("treatment_plans").select("*, users(name, phone)").eq("status", "ativo");
+  if (error) throw error;
+  const rows = (plans || []) as any[];
+  if (rows.length === 0) return [];
+
+  const planIds = rows.map((p) => p.id);
+  const { data: completedRows, error: err2 } = await getSupabaseClient().from("schedules").select("treatment_plan_id").in("treatment_plan_id", planIds).eq("status", "Concluido");
+  if (err2) throw err2;
+
+  const counts: Record<string, number> = {};
+  for (const row of (completedRows || []) as { treatment_plan_id: string }[]) {
+    counts[row.treatment_plan_id] = (counts[row.treatment_plan_id] || 0) + 1;
+  }
+
+  return rows.map((p) => ({ ...p, sessionsCompleted: counts[p.id] || 0, patientName: p.users?.name ?? null, patientPhone: p.users?.phone ?? null }));
+}

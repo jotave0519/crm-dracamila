@@ -17,6 +17,7 @@ interface ClinicSettings {
   website: string | null;
   about_text: string | null;
   general_notes: string | null;
+  days_without_return_threshold: number;
 }
 
 interface StatusData {
@@ -137,6 +138,19 @@ export function Configuracoes() {
               </span>
             </div>
           </div>
+          {clinic && (
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+              <span style={{ fontSize: 13.5, fontWeight: 500, flex: 1 }}>Dias sem retorno para gerar lembrete</span>
+              <input
+                className="input"
+                type="number"
+                min={1}
+                style={{ width: 90 }}
+                value={clinic.days_without_return_threshold}
+                onChange={(e) => setClinic({ ...clinic, days_without_return_threshold: Number(e.target.value) })}
+              />
+            </div>
+          )}
         </div>
 
         {clinic && (

@@ -28,14 +28,26 @@ function formatMoney(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+interface RemindersData {
+  withoutReturn: unknown[];
+  finishedTreatments: unknown[];
+  pendingPayments: unknown[];
+  tomorrowSessions: unknown[];
+}
+
 export function Dashboard() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
+  const [reminderCount, setReminderCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.get<DashboardData>("/dashboard").then(setData).catch((e) => setError(e.message));
+    api
+      .get<RemindersData>("/reminders")
+      .then((r) => setReminderCount(r.withoutReturn.length + r.finishedTreatments.length + r.pendingPayments.length + r.tomorrowSessions.length))
+      .catch(() => {});
   }, []);
 
   if (error) return <div className="empty-state">{error}</div>;
@@ -59,6 +71,19 @@ export function Dashboard() {
           "Nenhum atendimento futuro agendado."
         )}
       </p>
+
+      {reminderCount !== null && reminderCount > 0 && (
+        <button
+          className="card"
+          onClick={() => navigate("/lembretes")}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 18, textAlign: "left" }}
+        >
+          <span style={{ fontSize: 13.5, fontWeight: 500 }}>
+            Você tem <strong>{reminderCount}</strong> lembrete{reminderCount > 1 ? "s" : ""} pra hoje
+          </span>
+          <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>Ver lembretes</span>
+        </button>
+      )}
 
       <div className="kpi-grid">
         <div className="card">

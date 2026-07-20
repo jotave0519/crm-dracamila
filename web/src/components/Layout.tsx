@@ -19,6 +19,9 @@ const NAV_GROUPS = [
     items: [
       { to: "/tipos-atendimento", label: "Tipos de Atendimento" },
       { to: "/horarios-clinica", label: "Horários da Clínica" },
+      { to: "/estoque", label: "Estoque" },
+      { to: "/lembretes", label: "Lembretes" },
+      { to: "/relatorios", label: "Relatórios" },
     ],
   },
 ];

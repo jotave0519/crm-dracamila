@@ -3,10 +3,13 @@ import { createException, deleteException, listExceptions } from "../controllers
 import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotController";
 import { getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
 import { getDashboard } from "../controllers/api/dashboardController";
+import { createInventoryItem, deleteInventoryItem, listInventory, updateInventoryItem } from "../controllers/api/inventoryController";
 import { getMe } from "../controllers/api/meController";
 import { deleteAttachment, listAttachments, uploadAttachment, uploadMiddleware } from "../controllers/api/patientAttachmentController";
 import { createPatient, deletePatient, getPatient, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
 import { createPayment, deletePayment, listByPatient as listPaymentsByPatient } from "../controllers/api/paymentController";
+import { getReminders } from "../controllers/api/reminderController";
+import { getReport } from "../controllers/api/reportController";
 import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, updateEvolutionNote, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
 import { getSettings, updateSettings } from "../controllers/api/settingsController";
 import { createTreatmentPlan, deleteTreatmentPlan, listByPatient as listTreatmentPlansByPatient, updateTreatmentPlan } from "../controllers/api/treatmentPlanController";
@@ -72,3 +75,11 @@ apiRouter.delete("/business-hours/slots/:id", deleteSlot);
 apiRouter.get("/whatsapp/status", getStatus);
 apiRouter.get("/whatsapp/qrcode", getQrCode);
 apiRouter.post("/whatsapp/disconnect", disconnect);
+
+apiRouter.get("/inventory", listInventory);
+apiRouter.post("/inventory", createInventoryItem);
+apiRouter.patch("/inventory/:id", updateInventoryItem);
+apiRouter.delete("/inventory/:id", deleteInventoryItem);
+
+apiRouter.get("/reminders", getReminders);
+apiRouter.get("/reports", getReport);

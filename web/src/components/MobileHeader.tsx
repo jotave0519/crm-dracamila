@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { BellIcon } from "./icons";
 
 const TITLES: Record<string, string> = {
@@ -8,17 +8,21 @@ const TITLES: Record<string, string> = {
   "/conversas": "Conversas",
   "/tipos-atendimento": "Tipos de Atendimento",
   "/horarios-clinica": "Horários da Clínica",
+  "/estoque": "Estoque",
+  "/lembretes": "Lembretes",
+  "/relatorios": "Relatórios",
   "/configuracoes": "Configurações",
 };
 
 export function MobileHeader() {
   const location = useLocation();
+  const navigate = useNavigate();
   const title = TITLES[location.pathname] || "Clínica";
 
   return (
     <header className="mobile-header">
       <div className="mobile-header-title">{title}</div>
-      <button className="mobile-icon-btn">
+      <button className="mobile-icon-btn" onClick={() => navigate("/lembretes")}>
         <BellIcon />
       </button>
     </header>

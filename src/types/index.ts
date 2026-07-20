@@ -114,6 +114,19 @@ export interface ClinicSettings {
   website: string | null;
   about_text: string | null;
   general_notes: string | null;
+  days_without_return_threshold: number;
+  updated_at: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  category: string | null;
+  quantity: number;
+  unit: string | null;
+  min_quantity: number | null;
+  notes: string | null;
+  created_at: string;
   updated_at: string;
 }
 

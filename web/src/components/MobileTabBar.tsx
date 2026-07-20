@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { CalendarIcon, HomeIcon, MessageIcon, MoreIcon, UsersIcon } from "./icons";
 import { MobileMoreSheet } from "./MobileMoreSheet";
 
-const SECONDARY_PATHS = ["/tipos-atendimento", "/horarios-clinica", "/configuracoes"];
+const SECONDARY_PATHS = ["/tipos-atendimento", "/horarios-clinica", "/estoque", "/lembretes", "/relatorios", "/configuracoes"];
 
 const TABS = [
   { to: "/", label: "Início", icon: HomeIcon, end: true },

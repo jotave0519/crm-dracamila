@@ -34,3 +34,23 @@ export async function sumByPlan(planId: string): Promise<number> {
   if (error) throw error;
   return (data || []).reduce((sum, row: any) => sum + Number(row.amount), 0);
 }
+
+/** Usado pelos Lembretes: soma de pagamentos de varios planos de uma vez (sem N+1). */
+export async function sumByPlans(planIds: string[]): Promise<Record<string, number>> {
+  if (planIds.length === 0) return {};
+  const { data, error } = await getSupabaseClient().from("payments").select("treatment_plan_id, amount").in("treatment_plan_id", planIds);
+  if (error) throw error;
+  const sums: Record<string, number> = {};
+  for (const row of (data || []) as { treatment_plan_id: string | null; amount: number }[]) {
+    if (!row.treatment_plan_id) continue;
+    sums[row.treatment_plan_id] = (sums[row.treatment_plan_id] || 0) + Number(row.amount);
+  }
+  return sums;
+}
+
+/** Usado pelos Relatorios: faturamento total no periodo. */
+export async function sumInRange(startDate: string, endDate: string): Promise<number> {
+  const { data, error } = await getSupabaseClient().from("payments").select("amount").gte("payment_date", startDate).lte("payment_date", endDate);
+  if (error) throw error;
+  return (data || []).reduce((sum, row: any) => sum + Number(row.amount), 0);
+}

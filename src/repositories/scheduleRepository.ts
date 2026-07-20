@@ -163,3 +163,33 @@ export async function countDistinctUsersInTreatment(sinceDate: string): Promise<
   const unique = new Set((data || []).map((row: any) => row.user_id));
   return unique.size;
 }
+
+/** Usado pelos Lembretes: ultima sessao nao-cancelada de cada paciente, ate a data informada. */
+export async function findLastActivityPerUser(uptoDate: string): Promise<Record<string, string>> {
+  const { data, error } = await getSupabaseClient()
+    .from("schedules")
+    .select("user_id, date")
+    .neq("status", "Cancelado")
+    .lte("date", uptoDate)
+    .order("date", { ascending: false });
+  if (error) throw error;
+  const result: Record<string, string> = {};
+  for (const row of (data || []) as { user_id: string; date: string }[]) {
+    if (!(row.user_id in result)) result[row.user_id] = row.date;
+  }
+  return result;
+}
+
+/** Usado pelos Lembretes: pacientes com sessao futura Agendada/Confirmada apos a data informada. */
+export async function findUserIdsWithUpcoming(afterDate: string): Promise<Set<string>> {
+  const { data, error } = await getSupabaseClient().from("schedules").select("user_id").in("status", ["Agendado", "Confirmado"]).gt("date", afterDate);
+  if (error) throw error;
+  return new Set((data || []).map((row: any) => row.user_id));
+}
+
+/** Usado pelos Relatorios: todas as sessoes no periodo, sem excluir canceladas. */
+export async function listAllInRange(startDate: string, endDate: string): Promise<Schedule[]> {
+  const { data, error } = await getSupabaseClient().from("schedules").select("*").gte("date", startDate).lte("date", endDate).order("date", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
