@@ -13,7 +13,6 @@ interface ScheduleItem {
   date: string;
   time: string;
   status: "Agendado" | "Confirmado" | "Cancelado" | "Concluido" | "Faltou";
-  evolution_note: string | null;
 }
 
 interface TreatmentType {
@@ -64,8 +63,6 @@ export function Agenda() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-  const [noteFor, setNoteFor] = useState<ScheduleItem | null>(null);
-  const [noteDraft, setNoteDraft] = useState("");
   const [patientPlans, setPatientPlans] = useState<TreatmentPlanOption[]>([]);
   const [rescheduleFor, setRescheduleFor] = useState<ScheduleItem | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
@@ -139,12 +136,6 @@ export function Agenda() {
     }
   }
 
-  function openNoteEditor(s: ScheduleItem) {
-    setActionsFor(null);
-    setNoteFor(s);
-    setNoteDraft(s.evolution_note || "");
-  }
-
   function openReschedule(s: ScheduleItem) {
     setActionsFor(null);
     setRescheduleFor(s);
@@ -166,17 +157,6 @@ export function Agenda() {
       setError(e.message);
     } finally {
       setSavingReschedule(false);
-    }
-  }
-
-  async function saveNote() {
-    if (!noteFor) return;
-    try {
-      await api.patch(`/schedules/${noteFor.id}/evolution-note`, { evolutionNote: noteDraft });
-      setNoteFor(null);
-      load();
-    } catch (e: any) {
-      setError(e.message);
     }
   }
 
@@ -328,7 +308,6 @@ export function Agenda() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</div>
               <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{s.procedure}</div>
-              {s.evolution_note && <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2, fontStyle: "italic" }}>{s.evolution_note.slice(0, 80)}</div>}
             </div>
             <span className={`badge ${STATUS_BADGE[s.status]}`}>{s.status}</span>
             <button className="mobile-icon-btn" style={{ width: 32, height: 32, flex: "0 0 32px" }} onClick={() => setActionsFor(s)}>
@@ -365,9 +344,6 @@ export function Agenda() {
                   </button>
                 </>
               )}
-              <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => openNoteEditor(actionsFor)}>
-                Nota de evolução
-              </button>
               {(actionsFor.status === "Agendado" || actionsFor.status === "Confirmado") && (
                 <button className="btn-danger" style={{ justifyContent: "flex-start" }} onClick={() => handleCancel(actionsFor)}>
                   Cancelar sessão
@@ -419,25 +395,6 @@ export function Agenda() {
         onCancel={() => setCancelFor(null)}
       />
 
-      {noteFor && (
-        <div className="modal-overlay" onClick={() => setNoteFor(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Nota de evolução</div>
-            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12 }}>
-              {noteFor.patient_name} — {noteFor.procedure}
-            </div>
-            <textarea className="input" rows={5} value={noteDraft} onChange={(e) => setNoteDraft(e.target.value)} placeholder="Queixa, conduta, observações..." />
-            <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-              <button className="btn" onClick={saveNote}>
-                Salvar
-              </button>
-              <button className="btn btn-secondary" onClick={() => setNoteFor(null)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

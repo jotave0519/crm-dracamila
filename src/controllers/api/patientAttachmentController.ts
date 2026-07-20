@@ -19,7 +19,8 @@ const CATEGORIES = ["foto", "exame", "documento"];
 
 export async function listAttachments(req: Request, res: Response): Promise<void> {
   try {
-    const items = await patientAttachmentRepository.listByPatient(req.params.id);
+    const evolutionId = typeof req.query.evolutionId === "string" ? req.query.evolutionId : undefined;
+    const items = await patientAttachmentRepository.listByPatient(req.params.id, evolutionId);
     const withUrls = await Promise.all(
       items.map(async (item) => ({ ...item, url: await storage.getSignedUrl(item.storage_path) }))
     );
@@ -59,6 +60,7 @@ export async function uploadAttachment(req: Request, res: Response): Promise<voi
       storagePath: path,
       mimeType: file.mimetype || null,
       sizeBytes: file.size || null,
+      evolutionId: req.body.evolution_id || null,
     });
 
     res.status(201).json({ ...attachment, url: await storage.getSignedUrl(attachment.storage_path) });

@@ -110,7 +110,27 @@ export interface PatientAttachment {
   storage_path: string;
   mime_type: string | null;
   size_bytes: number | null;
+  evolution_id: string | null;
   uploaded_at: string;
+}
+
+export interface ClinicalEvolution {
+  id: string;
+  user_id: string;
+  schedule_id: string | null;
+  staff_id: string | null;
+  evolution_date: string;
+  main_complaint: string | null;
+  pain_scale: number | null;
+  treated_region: string | null;
+  treatment_performed: string | null;
+  techniques_used: string | null;
+  observations: string | null;
+  treatment_response: string | null;
+  guidance_given: string | null;
+  next_goals: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ClinicSettings {

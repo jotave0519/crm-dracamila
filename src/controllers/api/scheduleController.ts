@@ -126,38 +126,20 @@ export async function updateScheduleTreatmentPlan(req: Request, res: Response): 
   }
 }
 
-/** Marcacao manual pela recepcao apos a sessao: desfecho + nota de evolucao opcional. */
+/** Marcacao manual pela recepcao apos a sessao: desfecho (a documentacao clinica fica na aba Evolucao do paciente). */
 export async function updateOutcome(req: Request, res: Response): Promise<void> {
   try {
-    const { outcome, evolutionNote } = req.body;
+    const { outcome } = req.body;
     if (outcome !== "completed" && outcome !== "no_show") {
       res.status(400).json({ error: "outcome deve ser 'completed' ou 'no_show'." });
       return;
     }
 
     const status = outcome === "completed" ? "Concluido" : "Faltou";
-    let schedule = await scheduleRepository.updateScheduleStatus(req.params.id, status);
-    if (evolutionNote) {
-      schedule = await scheduleRepository.updateEvolutionNote(req.params.id, evolutionNote);
-    }
+    const schedule = await scheduleRepository.updateScheduleStatus(req.params.id, status);
     res.json(schedule);
   } catch (err) {
     logger.error(SCOPE, "Erro ao marcar desfecho do agendamento", err);
     res.status(500).json({ error: "Erro ao marcar desfecho do agendamento." });
-  }
-}
-
-export async function updateEvolutionNote(req: Request, res: Response): Promise<void> {
-  try {
-    const { evolutionNote } = req.body;
-    if (typeof evolutionNote !== "string") {
-      res.status(400).json({ error: "evolutionNote e obrigatorio." });
-      return;
-    }
-    const schedule = await scheduleRepository.updateEvolutionNote(req.params.id, evolutionNote);
-    res.json(schedule);
-  } catch (err) {
-    logger.error(SCOPE, "Erro ao salvar nota de evolucao", err);
-    res.status(500).json({ error: "Erro ao salvar nota de evolucao." });
   }
 }

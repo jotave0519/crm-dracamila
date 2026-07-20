@@ -2,6 +2,7 @@ import { Router } from "express";
 import { createException, deleteException, listExceptions, updateException } from "../controllers/api/businessHourExceptionController";
 import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotController";
 import { getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
+import { createEvolution, deleteEvolution, listEvolutions, updateEvolution } from "../controllers/api/clinicalEvolutionController";
 import { getDashboard } from "../controllers/api/dashboardController";
 import { createCategory, deleteCategory, listCategories, updateCategory } from "../controllers/api/financialCategoryController";
 import { createTransaction, deleteTransaction, getMonthlyChart, getSummary, listTransactions, updateTransaction } from "../controllers/api/financialTransactionController";
@@ -12,7 +13,7 @@ import { deleteAttachment, listAttachments, uploadAttachment, uploadMiddleware }
 import { createPatient, deletePatient, getPatient, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
 import { getReminders } from "../controllers/api/reminderController";
 import { getReport } from "../controllers/api/reportController";
-import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, rescheduleSchedule, updateEvolutionNote, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
+import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, rescheduleSchedule, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
 import { getSettings, updateSettings } from "../controllers/api/settingsController";
 import { createTreatmentPlan, deleteTreatmentPlan, listByPatient as listTreatmentPlansByPatient, updateTreatmentPlan } from "../controllers/api/treatmentPlanController";
 import { createTreatmentType, deleteTreatmentType, listTreatmentTypes, updateTreatmentType } from "../controllers/api/treatmentTypeController";
@@ -50,7 +51,11 @@ apiRouter.patch("/schedules/:id/outcome", updateOutcome);
 apiRouter.patch("/schedules/:id/confirm", confirmSchedule);
 apiRouter.patch("/schedules/:id/reschedule", rescheduleSchedule);
 apiRouter.patch("/schedules/:id/treatment-plan", updateScheduleTreatmentPlan);
-apiRouter.patch("/schedules/:id/evolution-note", updateEvolutionNote);
+
+apiRouter.get("/patients/:id/evolutions", listEvolutions);
+apiRouter.post("/patients/:id/evolutions", createEvolution);
+apiRouter.patch("/evolutions/:id", updateEvolution);
+apiRouter.delete("/evolutions/:id", deleteEvolution);
 
 apiRouter.get("/conversations", listConversations);
 apiRouter.get("/conversations/:id", getConversation);

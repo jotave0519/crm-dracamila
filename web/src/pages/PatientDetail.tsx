@@ -68,6 +68,22 @@ interface TreatmentPlan {
   sessionsRemaining: number;
 }
 
+interface Evolution {
+  id: string;
+  schedule_id: string | null;
+  staffName: string | null;
+  evolution_date: string;
+  main_complaint: string | null;
+  pain_scale: number | null;
+  treated_region: string | null;
+  treatment_performed: string | null;
+  techniques_used: string | null;
+  observations: string | null;
+  treatment_response: string | null;
+  guidance_given: string | null;
+  next_goals: string | null;
+}
+
 const STATUS_BADGE: Record<string, string> = { Agendado: "badge-blue", Confirmado: "badge-yellow", Concluido: "badge-green", Faltou: "badge-red", Cancelado: "badge-neutral" };
 const PLAN_STATUS_BADGE: Record<string, string> = { ativo: "badge-blue", concluido: "badge-green", cancelado: "badge-neutral" };
 
@@ -76,17 +92,56 @@ function formatMoney(v: number | null): string {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-type Tab = "resumo" | "clinico" | "avaliacao" | "plano" | "anexos" | "sessoes";
+function toIso(d: Date): string {
+  return d.toLocaleDateString("en-CA");
+}
+
+function formatLongDate(dateStr: string): string {
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+function painScaleBadge(scale: number | null): { label: string; className: string } | null {
+  if (scale == null) return null;
+  const className = scale <= 3 ? "badge-green" : scale <= 6 ? "badge-yellow" : "badge-red";
+  return { label: `Dor ${scale}/10`, className };
+}
+
+function evolutionField(label: string, value: string | null) {
+  if (!value) return null;
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5 }}>{label}</div>
+      <div style={{ fontSize: 13.5, color: "var(--text)", whiteSpace: "pre-wrap", lineHeight: 1.55 }}>{value}</div>
+    </div>
+  );
+}
+
+type Tab = "resumo" | "clinico" | "avaliacao" | "evolucao" | "plano" | "anexos" | "sessoes";
 const TABS: { id: Tab; label: string }[] = [
   { id: "resumo", label: "Resumo" },
   { id: "clinico", label: "Histórico Clínico" },
   { id: "avaliacao", label: "Avaliação Física" },
+  { id: "evolucao", label: "Evolução" },
   { id: "plano", label: "Plano de Tratamento" },
   { id: "anexos", label: "Anexos" },
   { id: "sessoes", label: "Sessões" },
 ];
 
 const EMPTY_PLAN_FORM = { treatment_type_id: "", total_sessions: "10", total_price: "", start_date: "", goal: "", status: "ativo" as TreatmentPlan["status"], notes: "" };
+
+const EMPTY_EVOLUTION_FORM = {
+  schedule_id: "",
+  evolution_date: toIso(new Date()),
+  main_complaint: "",
+  pain_scale: "",
+  treated_region: "",
+  treatment_performed: "",
+  techniques_used: "",
+  observations: "",
+  treatment_response: "",
+  guidance_given: "",
+  next_goals: "",
+};
 
 const EMPTY_FORM: Omit<Patient, "id" | "created_at"> = {
   name: "",
@@ -129,6 +184,15 @@ export function PatientDetail() {
   const [savingPlan, setSavingPlan] = useState(false);
   const [confirm, setConfirm] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [deletingPatient, setDeletingPatient] = useState(false);
+  const [evolutions, setEvolutions] = useState<Evolution[] | null>(null);
+  const [showEvolutionForm, setShowEvolutionForm] = useState(false);
+  const [editingEvolutionId, setEditingEvolutionId] = useState<string | null>(null);
+  const [evolutionForm, setEvolutionForm] = useState(EMPTY_EVOLUTION_FORM);
+  const [savingEvolution, setSavingEvolution] = useState(false);
+  const [viewingEvolution, setViewingEvolution] = useState<Evolution | null>(null);
+  const [evolutionAttachments, setEvolutionAttachments] = useState<Attachment[] | null>(null);
+  const [evolutionUploadCategory, setEvolutionUploadCategory] = useState<Attachment["category"]>("foto");
+  const [uploadingEvolutionAttachment, setUploadingEvolutionAttachment] = useState(false);
 
   function load() {
     if (!id) return;
@@ -152,6 +216,11 @@ export function PatientDetail() {
     api.get<{ items: TreatmentPlan[] }>(`/patients/${id}/treatment-plans`).then((r) => setPlans(r.items)).catch((e) => setError(e.message));
   }
 
+  function loadEvolutions() {
+    if (!id) return;
+    api.get<{ items: Evolution[] }>(`/patients/${id}/evolutions`).then((r) => setEvolutions(r.items)).catch((e) => setError(e.message));
+  }
+
   useEffect(load, [id]);
   useEffect(() => {
     api.get<{ items: TreatmentTypeOption[] }>("/treatment-types").then((r) => setTreatmentTypes(r.items));
@@ -159,6 +228,7 @@ export function PatientDetail() {
   useEffect(() => {
     if (tab === "anexos" && attachments === null) loadAttachments();
     if (tab === "plano" && plans === null) loadPlans();
+    if (tab === "evolucao" && evolutions === null) loadEvolutions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
@@ -242,6 +312,156 @@ export function PatientDetail() {
         } catch (e: any) {
           setError(e.message);
           setDeletingPatient(false);
+        }
+      },
+    });
+  }
+
+  function startCreateEvolution() {
+    setEditingEvolutionId(null);
+    setEvolutionForm(EMPTY_EVOLUTION_FORM);
+    setShowEvolutionForm(true);
+  }
+
+  function startEditEvolution(ev: Evolution) {
+    setEditingEvolutionId(ev.id);
+    setEvolutionForm({
+      schedule_id: ev.schedule_id || "",
+      evolution_date: ev.evolution_date,
+      main_complaint: ev.main_complaint || "",
+      pain_scale: ev.pain_scale != null ? String(ev.pain_scale) : "",
+      treated_region: ev.treated_region || "",
+      treatment_performed: ev.treatment_performed || "",
+      techniques_used: ev.techniques_used || "",
+      observations: ev.observations || "",
+      treatment_response: ev.treatment_response || "",
+      guidance_given: ev.guidance_given || "",
+      next_goals: ev.next_goals || "",
+    });
+    setViewingEvolution(null);
+    setShowEvolutionForm(true);
+  }
+
+  async function handleSaveEvolution(e: FormEvent) {
+    e.preventDefault();
+    if (!id) return;
+    setSavingEvolution(true);
+    setError(null);
+    try {
+      const payload = {
+        schedule_id: evolutionForm.schedule_id || null,
+        evolution_date: evolutionForm.evolution_date,
+        main_complaint: evolutionForm.main_complaint || null,
+        pain_scale: evolutionForm.pain_scale !== "" ? Number(evolutionForm.pain_scale) : null,
+        treated_region: evolutionForm.treated_region || null,
+        treatment_performed: evolutionForm.treatment_performed || null,
+        techniques_used: evolutionForm.techniques_used || null,
+        observations: evolutionForm.observations || null,
+        treatment_response: evolutionForm.treatment_response || null,
+        guidance_given: evolutionForm.guidance_given || null,
+        next_goals: evolutionForm.next_goals || null,
+      };
+      if (editingEvolutionId) await api.patch(`/evolutions/${editingEvolutionId}`, payload);
+      else await api.post(`/patients/${id}/evolutions`, payload);
+      setShowEvolutionForm(false);
+      loadEvolutions();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSavingEvolution(false);
+    }
+  }
+
+  function handleDeleteEvolution(ev: Evolution) {
+    setConfirm({
+      title: "Excluir evolução?",
+      message: `O registro de ${formatLongDate(ev.evolution_date)} será removido definitivamente, junto com os anexos vinculados a ele.`,
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.delete(`/evolutions/${ev.id}`);
+          setViewingEvolution(null);
+          loadEvolutions();
+        } catch (e: any) {
+          setError(e.message);
+        }
+      },
+    });
+  }
+
+  async function handleDuplicateEvolution(ev: Evolution) {
+    if (!id) return;
+    try {
+      await api.post(`/patients/${id}/evolutions`, {
+        schedule_id: null,
+        evolution_date: toIso(new Date()),
+        main_complaint: ev.main_complaint,
+        pain_scale: ev.pain_scale,
+        treated_region: ev.treated_region,
+        treatment_performed: ev.treatment_performed,
+        techniques_used: ev.techniques_used,
+        observations: ev.observations,
+        treatment_response: ev.treatment_response,
+        guidance_given: ev.guidance_given,
+        next_goals: ev.next_goals,
+      });
+      loadEvolutions();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
+  function openEvolutionDetail(ev: Evolution) {
+    setViewingEvolution(ev);
+    setEvolutionAttachments(null);
+    loadEvolutionAttachments(ev.id);
+  }
+
+  function loadEvolutionAttachments(evolutionId: string) {
+    if (!id) return;
+    api
+      .get<{ items: Attachment[] }>(`/patients/${id}/attachments?evolutionId=${evolutionId}`)
+      .then((r) => setEvolutionAttachments(r.items))
+      .catch((e) => setError(e.message));
+  }
+
+  async function handleUploadEvolutionAttachment(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!viewingEvolution || !id) return;
+    const input = e.currentTarget.elements.namedItem("file") as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    setUploadingEvolutionAttachment(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("category", evolutionUploadCategory);
+      formData.append("evolution_id", viewingEvolution.id);
+      await api.upload(`/patients/${id}/attachments`, formData);
+      input.value = "";
+      loadEvolutionAttachments(viewingEvolution.id);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setUploadingEvolutionAttachment(false);
+    }
+  }
+
+  function handleDeleteEvolutionAttachment(attachmentId: string) {
+    if (!id || !viewingEvolution) return;
+    const evolutionId = viewingEvolution.id;
+    setConfirm({
+      title: "Excluir anexo?",
+      message: "O arquivo será removido definitivamente.",
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.delete(`/patients/${id}/attachments/${attachmentId}`);
+          loadEvolutionAttachments(evolutionId);
+        } catch (e: any) {
+          setError(e.message);
         }
       },
     });
@@ -435,6 +655,137 @@ export function PatientDetail() {
         </div>
       )}
 
+      {tab === "evolucao" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+            <button className="btn" onClick={startCreateEvolution}>
+              + Nova evolução
+            </button>
+          </div>
+
+          {showEvolutionForm && (
+            <div className="card" style={{ maxWidth: 560, marginBottom: 20 }}>
+              <form onSubmit={handleSaveEvolution} style={{ display: "grid", gap: 12 }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{editingEvolutionId ? "Editar evolução" : "Nova evolução"}</div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">Data</label>
+                    <input className="input" type="date" required value={evolutionForm.evolution_date} onChange={(e) => setEvolutionForm({ ...evolutionForm, evolution_date: e.target.value })} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">Escala de dor (0-10)</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={evolutionForm.pain_scale}
+                      onChange={(e) => setEvolutionForm({ ...evolutionForm, pain_scale: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="field-label">Sessão vinculada (opcional)</label>
+                  <select className="input" value={evolutionForm.schedule_id} onChange={(e) => setEvolutionForm({ ...evolutionForm, schedule_id: e.target.value })}>
+                    <option value="">Nenhuma</option>
+                    {schedules.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {new Date(`${s.date}T12:00:00`).toLocaleDateString("pt-BR")} — {s.procedure}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Queixa do paciente</label>
+                  <textarea className="input" rows={2} value={evolutionForm.main_complaint} onChange={(e) => setEvolutionForm({ ...evolutionForm, main_complaint: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Região tratada</label>
+                  <input className="input" value={evolutionForm.treated_region} onChange={(e) => setEvolutionForm({ ...evolutionForm, treated_region: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Conduta realizada</label>
+                  <textarea className="input" rows={2} value={evolutionForm.treatment_performed} onChange={(e) => setEvolutionForm({ ...evolutionForm, treatment_performed: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Técnicas utilizadas</label>
+                  <textarea className="input" rows={2} value={evolutionForm.techniques_used} onChange={(e) => setEvolutionForm({ ...evolutionForm, techniques_used: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Observações</label>
+                  <textarea className="input" rows={2} value={evolutionForm.observations} onChange={(e) => setEvolutionForm({ ...evolutionForm, observations: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Resposta ao tratamento</label>
+                  <textarea className="input" rows={2} value={evolutionForm.treatment_response} onChange={(e) => setEvolutionForm({ ...evolutionForm, treatment_response: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Orientações passadas</label>
+                  <textarea className="input" rows={2} value={evolutionForm.guidance_given} onChange={(e) => setEvolutionForm({ ...evolutionForm, guidance_given: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Próximos objetivos</label>
+                  <textarea className="input" rows={2} value={evolutionForm.next_goals} onChange={(e) => setEvolutionForm({ ...evolutionForm, next_goals: e.target.value })} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button className="btn" type="submit" disabled={savingEvolution}>
+                    {savingEvolution ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button className="btn btn-secondary" type="button" onClick={() => setShowEvolutionForm(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {evolutions === null && <div className="empty-state">Carregando...</div>}
+          {evolutions && evolutions.length === 0 && (
+            <EmptyState title="Nenhuma evolução registrada" description="Registre a primeira evolução clínica desse paciente." actionLabel="Registrar primeira evolução" onAction={startCreateEvolution} />
+          )}
+
+          {evolutions && evolutions.length > 0 && (
+            <div>
+              {evolutions.map((ev, i) => {
+                const pain = painScaleBadge(ev.pain_scale);
+                return (
+                  <div key={ev.id} style={{ display: "flex", gap: 14 }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 12, flex: "0 0 12px" }}>
+                      <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--accent)", marginTop: 8, flex: "0 0 auto" }} />
+                      {i < evolutions.length - 1 && <div style={{ width: 2, flex: 1, background: "var(--border-soft)", marginTop: 4 }} />}
+                    </div>
+                    <div className="card" style={{ flex: 1, marginBottom: 16, cursor: "pointer" }} onClick={() => openEvolutionDetail(ev)}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, textTransform: "capitalize" }}>{formatLongDate(ev.evolution_date)}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{ev.staffName || "Profissional"}</div>
+                        </div>
+                        {pain && <span className={`badge ${pain.className}`}>{pain.label}</span>}
+                      </div>
+                      {ev.treated_region && <div style={{ fontSize: 12.5, marginTop: 8 }}>Região: {ev.treated_region}</div>}
+                      {ev.main_complaint && (
+                        <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.main_complaint}</div>
+                      )}
+                      <div style={{ display: "flex", gap: 8, marginTop: 14 }} onClick={(e) => e.stopPropagation()}>
+                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => startEditEvolution(ev)}>
+                          Editar
+                        </button>
+                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDuplicateEvolution(ev)}>
+                          Duplicar
+                        </button>
+                        <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDeleteEvolution(ev)}>
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {tab === "plano" && (
         <div>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
@@ -602,6 +953,93 @@ export function PatientDetail() {
                 {s.evolution_note && <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 8, fontStyle: "italic" }}>{s.evolution_note}</div>}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {viewingEvolution && (
+        <div className="modal-overlay" onClick={() => setViewingEvolution(null)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, maxHeight: "88vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 4 }}>
+              <div>
+                <div style={{ fontSize: 17, fontWeight: 600, textTransform: "capitalize" }}>{formatLongDate(viewingEvolution.evolution_date)}</div>
+                <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{viewingEvolution.staffName || "Profissional"}</div>
+              </div>
+              {painScaleBadge(viewingEvolution.pain_scale) && (
+                <span className={`badge ${painScaleBadge(viewingEvolution.pain_scale)!.className}`}>{painScaleBadge(viewingEvolution.pain_scale)!.label}</span>
+              )}
+            </div>
+
+            <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border-soft)" }}>
+              {evolutionField("Queixa do paciente", viewingEvolution.main_complaint)}
+              {evolutionField("Região tratada", viewingEvolution.treated_region)}
+              {evolutionField("Conduta realizada", viewingEvolution.treatment_performed)}
+              {evolutionField("Técnicas utilizadas", viewingEvolution.techniques_used)}
+              {evolutionField("Observações", viewingEvolution.observations)}
+              {evolutionField("Resposta ao tratamento", viewingEvolution.treatment_response)}
+              {evolutionField("Orientações passadas", viewingEvolution.guidance_given)}
+              {evolutionField("Próximos objetivos", viewingEvolution.next_goals)}
+            </div>
+
+            <div style={{ marginTop: 8, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-faint)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>Anexos</div>
+
+              {evolutionAttachments === null && <div className="empty-state">Carregando...</div>}
+              {evolutionAttachments && evolutionAttachments.length === 0 && <div style={{ fontSize: 12.5, color: "var(--text-faint)", marginBottom: 12 }}>Nenhum anexo nessa evolução.</div>}
+              {evolutionAttachments && evolutionAttachments.length > 0 && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10, marginBottom: 14 }}>
+                  {evolutionAttachments.map((a) => (
+                    <div key={a.id} className="card" style={{ padding: 8 }}>
+                      {a.mime_type?.startsWith("image/") && a.url ? (
+                        <img src={a.url} alt={a.file_name} style={{ width: "100%", height: 80, objectFit: "cover", borderRadius: 6, marginBottom: 6 }} />
+                      ) : (
+                        <div style={{ width: "100%", height: 80, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--accent-bg)", borderRadius: 6, marginBottom: 6, fontSize: 11, color: "var(--text-muted)" }}>
+                          {a.category}
+                        </div>
+                      )}
+                      <div style={{ fontSize: 10.5, wordBreak: "break-all", marginBottom: 6 }}>{a.file_name}</div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {a.url && (
+                          <a href={a.url} target="_blank" rel="noreferrer" className="btn-secondary" style={{ fontSize: 10.5, padding: "3px 6px" }}>
+                            Abrir
+                          </a>
+                        )}
+                        <button className="btn-danger" style={{ fontSize: 10.5, padding: "3px 6px" }} onClick={() => handleDeleteEvolutionAttachment(a.id)}>
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleUploadEvolutionAttachment} style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <select className="input" style={{ maxWidth: 150 }} value={evolutionUploadCategory} onChange={(e) => setEvolutionUploadCategory(e.target.value as Attachment["category"])}>
+                  <option value="foto">Foto</option>
+                  <option value="exame">Exame</option>
+                  <option value="documento">Documento</option>
+                </select>
+                <input className="input" style={{ maxWidth: 220 }} type="file" name="file" required accept="image/*,application/pdf" />
+                <button className="btn btn-secondary" type="submit" disabled={uploadingEvolutionAttachment}>
+                  {uploadingEvolutionAttachment ? "Enviando..." : "Anexar"}
+                </button>
+              </form>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 22, paddingTop: 16, borderTop: "1px solid var(--border-soft)" }}>
+              <button className="btn btn-secondary" onClick={() => startEditEvolution(viewingEvolution)}>
+                Editar
+              </button>
+              <button className="btn btn-secondary" onClick={() => handleDuplicateEvolution(viewingEvolution)}>
+                Duplicar
+              </button>
+              <button className="btn-danger" onClick={() => handleDeleteEvolution(viewingEvolution)}>
+                Excluir
+              </button>
+              <button className="btn btn-secondary" onClick={() => setViewingEvolution(null)} style={{ marginLeft: "auto" }}>
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

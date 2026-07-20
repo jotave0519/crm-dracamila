@@ -1,8 +1,10 @@
 import { getSupabaseClient } from "../integrations/supabaseClient";
 import { PatientAttachment } from "../types";
 
-export async function listByPatient(userId: string): Promise<PatientAttachment[]> {
-  const { data, error } = await getSupabaseClient().from("patient_attachments").select("*").eq("user_id", userId).order("uploaded_at", { ascending: false });
+export async function listByPatient(userId: string, evolutionId?: string): Promise<PatientAttachment[]> {
+  let query = getSupabaseClient().from("patient_attachments").select("*").eq("user_id", userId).order("uploaded_at", { ascending: false });
+  if (evolutionId) query = query.eq("evolution_id", evolutionId);
+  const { data, error } = await query;
   if (error) throw error;
   return data || [];
 }
@@ -14,6 +16,7 @@ export async function create(params: {
   storagePath: string;
   mimeType: string | null;
   sizeBytes: number | null;
+  evolutionId?: string | null;
 }): Promise<PatientAttachment> {
   const { data, error } = await getSupabaseClient()
     .from("patient_attachments")
@@ -24,6 +27,7 @@ export async function create(params: {
       storage_path: params.storagePath,
       mime_type: params.mimeType,
       size_bytes: params.sizeBytes,
+      evolution_id: params.evolutionId ?? null,
     })
     .select("*")
     .single();

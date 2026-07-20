@@ -74,12 +74,6 @@ export async function updateScheduleTreatmentPlan(scheduleId: string, treatmentP
   return data;
 }
 
-export async function updateEvolutionNote(scheduleId: string, evolutionNote: string): Promise<Schedule> {
-  const { data, error } = await getSupabaseClient().from("schedules").update({ evolution_note: evolutionNote, updated_at: new Date().toISOString() }).eq("id", scheduleId).select("*").single();
-  if (error) throw error;
-  return data;
-}
-
 /** Usado pela Agenda do CRM web. */
 export async function findByDateRange(startDate: string, endDate: string): Promise<Schedule[]> {
   const { data, error } = await getSupabaseClient()
