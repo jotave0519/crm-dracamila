@@ -1,15 +1,30 @@
 import { env } from "../config/env";
 import { createMessage } from "../integrations/anthropicClient";
 import * as conversationRepository from "../repositories/conversationRepository";
-import { Conversation, User } from "../types";
+import { AiSettings, Conversation, User } from "../types";
 import { logger } from "../utils/logger";
 import { isAbandon, isConfirmation } from "./confirmations";
 import { currentDateTimeLabel, GLOBAL_RULES } from "./prompt";
 import { getPrimaryToolName, getStep } from "./steps";
-import { FlowContext, StepDefinition } from "./types";
+import { FlowContext, StepDefinition, ToolSchema } from "./types";
 
 const SCOPE = "conversation.engine";
 const CONTEXT_EXPIRY_MINUTES = 60;
+
+/** Ferramentas cujo acesso e controlado pelo painel Assistente IA - filtradas a cada turno, sempre com base na configuracao mais atual. */
+const TOOL_GATE: Record<string, keyof AiSettings> = {
+  begin_scheduling: "scheduling_enabled",
+  begin_rescheduling: "rescheduling_enabled",
+  begin_cancellation: "cancellation_enabled",
+  request_human_handoff: "human_handoff_enabled",
+};
+
+function gateTools(tools: ToolSchema[], aiSettings: AiSettings): ToolSchema[] {
+  return tools.filter((tool) => {
+    const settingKey = TOOL_GATE[tool.name];
+    return !settingKey || aiSettings[settingKey];
+  });
+}
 
 export interface EngineResult {
   reply: string;
@@ -28,7 +43,7 @@ function isConversationStale(conversation: Conversation): boolean {
   return elapsedMs > CONTEXT_EXPIRY_MINUTES * 60 * 1000;
 }
 
-export async function runTurn(user: User, conversation: Conversation, userMessage: string): Promise<EngineResult> {
+export async function runTurn(user: User, conversation: Conversation, userMessage: string, aiSettings: AiSettings): Promise<EngineResult> {
   logger.info(SCOPE, "runTurn: inicio", { userId: user.id, conversationId: conversation.id, status: conversation.status, state: conversation.state, userMessage });
 
   const stale = isConversationStale(conversation);
@@ -47,13 +62,13 @@ export async function runTurn(user: User, conversation: Conversation, userMessag
   const primaryTool = getPrimaryToolName(currentStep);
   if (primaryTool?.startsWith("confirm_") && isConfirmation(userMessage)) {
     logger.info(SCOPE, "Fast-path de confirmacao acionado", { conversationId: conversation.id, state: conversation.state, tool: primaryTool });
-    const ctx: FlowContext = { user, conversation, isFirstMessage };
+    const ctx: FlowContext = { user, conversation, isFirstMessage, aiSettings };
     const result = await currentStep.handlers[primaryTool](ctx, {});
     return finalize(conversation, result);
   }
 
   if (conversation.state !== "MENU" && isAbandon(userMessage)) {
-    const ctx: FlowContext = { user, conversation, isFirstMessage };
+    const ctx: FlowContext = { user, conversation, isFirstMessage, aiSettings };
     const result = await currentStep.handlers.abandon_flow(ctx, {});
     return finalize(conversation, result);
   }
@@ -73,12 +88,13 @@ export async function runTurn(user: User, conversation: Conversation, userMessag
     while (true) {
       iteration += 1;
       const step = getStep(workingConversation.state);
-      const ctx: FlowContext = { user, conversation: workingConversation, isFirstMessage };
+      const ctx: FlowContext = { user, conversation: workingConversation, isFirstMessage, aiSettings };
       const systemPrompt = await buildSystemPrompt(step, ctx);
+      const activeTools = gateTools(step.tools, aiSettings);
 
-      logger.info(SCOPE, `Chamando Claude (iteracao ${iteration})`, { conversationId: conversation.id, state: workingConversation.state, tools: step.tools.map((t) => t.name) });
+      logger.info(SCOPE, `Chamando Claude (iteracao ${iteration})`, { conversationId: conversation.id, state: workingConversation.state, tools: activeTools.map((t) => t.name) });
 
-      const response = await createMessage({ model: env.anthropicModel, max_tokens: 1024, system: systemPrompt, tools: step.tools, messages: history });
+      const response = await createMessage({ model: env.anthropicModel, max_tokens: 1024, system: systemPrompt, tools: activeTools, messages: history });
 
       logger.info(SCOPE, `Resposta da Claude (iteracao ${iteration})`, { stopReason: response.stop_reason });
 
@@ -101,7 +117,7 @@ export async function runTurn(user: User, conversation: Conversation, userMessag
           } else {
             logger.info(SCOPE, "Executando ferramenta", { name: block.name, input: block.input, state: workingConversation.state });
             try {
-              const result = await handler({ user, conversation: workingConversation, isFirstMessage }, block.input);
+              const result = await handler({ user, conversation: workingConversation, isFirstMessage, aiSettings }, block.input);
               await conversationRepository.updateConversationFlow(workingConversation.id, result.nextStep, result.data);
               workingConversation = { ...workingConversation, state: result.nextStep, state_data: result.data };
               if (result.handoffRequested) handoffRequested = true;

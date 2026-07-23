@@ -17,10 +17,24 @@ export const menuStep: StepDefinition = {
       "as perguntas, uma de cada vez.\n" +
       "Depois de responder uma duvida, pode convidar naturalmente para uma avaliacao, sem forcar.\n";
 
+    const disabledFlows: string[] = [];
+    if (!ctx.aiSettings.scheduling_enabled) disabledFlows.push("agendar");
+    if (!ctx.aiSettings.rescheduling_enabled) disabledFlows.push("remarcar");
+    if (!ctx.aiSettings.cancellation_enabled) disabledFlows.push("cancelar");
+    if (disabledFlows.length > 0) {
+      text +=
+        `IMPORTANTE: a ferramenta para ${disabledFlows.join("/")} esta temporariamente indisponivel para voce - nao existe mais no seu conjunto ` +
+        "de ferramentas. NUNCA tente conduzir esse processo manualmente por texto (nunca peca nome/data/horario como se fosse agendar de verdade, " +
+        "isso enganaria o cliente). Se o cliente pedir isso, explique com naturalidade que esse atendimento automatico esta indisponivel no " +
+        "momento e peca para ele entrar em contato diretamente com a clinica.\n";
+    }
+
     const hasName = looksLikeFullName(ctx.user.name);
 
     if (ctx.isFirstMessage) {
-      if (hasName) {
+      if (!ctx.aiSettings.greeting_enabled) {
+        text += "Nao envie uma saudacao especial de boas-vindas - responda diretamente ao que o cliente perguntou ou pediu, com educacao mas sem introducao.\n";
+      } else if (hasName) {
         text += `Este cliente ja e cadastrado (nome: ${ctx.user.name}) e esta retomando o atendimento. Cumprimente-o pelo nome de forma calorosa, sem perguntar o nome de novo.\n`;
       } else {
         text += 'Este e o primeiro contato deste numero. Cumprimente de forma calorosa e acolhedora, se apresentando como a recepcionista virtual da clinica.\n';

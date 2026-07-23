@@ -7,6 +7,7 @@ const TITLES: Record<string, string> = {
   "/pacientes": "Pacientes",
   "/conversas": "Conversas",
   "/whatsapp-ia": "WhatsApp IA",
+  "/assistente-ia": "Assistente IA",
   "/tipos-atendimento": "Tipos de Atendimento",
   "/horarios-clinica": "Horários da Clínica",
   "/financeiro": "Financeiro",

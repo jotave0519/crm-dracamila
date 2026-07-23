@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getAiSettings, getStatus as getAiStatus, previewReactivationCampaign, sendReactivationCampaign, updateAiSettings } from "../controllers/api/aiSettingsController";
 import { createException, deleteException, listExceptions, updateException } from "../controllers/api/businessHourExceptionController";
 import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotController";
 import { getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
@@ -77,6 +78,12 @@ apiRouter.patch("/business-hours/exceptions/:id", updateException);
 apiRouter.delete("/business-hours/exceptions/:id", deleteException);
 apiRouter.post("/business-hours/slots", createSlot);
 apiRouter.delete("/business-hours/slots/:id", deleteSlot);
+
+apiRouter.get("/ai-settings", getAiSettings);
+apiRouter.patch("/ai-settings", updateAiSettings);
+apiRouter.get("/ai-settings/status", getAiStatus);
+apiRouter.get("/ai-settings/reactivation-campaign/preview", previewReactivationCampaign);
+apiRouter.post("/ai-settings/reactivation-campaign/send", sendReactivationCampaign);
 
 apiRouter.get("/whatsapp/status", getStatus);
 apiRouter.get("/whatsapp/qrcode", getQrCode);

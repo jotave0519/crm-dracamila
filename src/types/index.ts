@@ -270,3 +270,34 @@ export interface Staff {
   created_at: string;
   updated_at: string;
 }
+
+export interface AiSettings {
+  id: 1;
+  master_enabled: boolean;
+  greeting_enabled: boolean;
+  confirmation_enabled: boolean;
+  confirmation_hours_before: number[];
+  reminder_enabled: boolean;
+  reminder_minutes_before: number;
+  away_enabled: boolean;
+  away_first_minutes: number;
+  away_first_message: string;
+  away_second_minutes: number;
+  away_second_message: string;
+  business_hours_only_enabled: boolean;
+  business_hours_message: string;
+  human_handoff_enabled: boolean;
+  reactivation_enabled: boolean;
+  reactivation_days_threshold: number;
+  reactivation_message: string;
+  waitlist_enabled: boolean;
+  post_session_enabled: boolean;
+  post_session_hours_after: number;
+  post_session_message: string;
+  pre_anamnesis_enabled: boolean;
+  scheduling_enabled: boolean;
+  cancellation_enabled: boolean;
+  rescheduling_enabled: boolean;
+  notifications_enabled: boolean;
+  updated_at: string;
+}

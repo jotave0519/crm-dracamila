@@ -96,6 +96,26 @@ export async function listByPatient(userId: string): Promise<ConversationSummary
   return summaries;
 }
 
+/** Usado pelo Assistente IA (status): mensagens trocadas no periodo. */
+export async function countMessagesInRange(from: string, to: string): Promise<number> {
+  const { count, error } = await getSupabaseClient().from("messages").select("*", { count: "exact", head: true }).gte("created_at", from).lt("created_at", to);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Usado pelo Assistente IA (status): pacientes distintos que mandaram mensagem no periodo. */
+export async function countDistinctPatientsMessagedInRange(from: string, to: string): Promise<number> {
+  const { data, error } = await getSupabaseClient()
+    .from("messages")
+    .select("conversation_id, conversations!inner(user_id)")
+    .eq("role", "user")
+    .gte("created_at", from)
+    .lt("created_at", to);
+  if (error) throw error;
+  const userIds = new Set((data || []).map((row: any) => row.conversations?.user_id).filter(Boolean));
+  return userIds.size;
+}
+
 export async function countActive(): Promise<number> {
   const { count, error } = await getSupabaseClient().from("conversations").select("*", { count: "exact", head: true }).neq("status", "closed");
   if (error) throw error;

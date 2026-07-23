@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { Agenda } from "./pages/Agenda";
+import { AssistenteIA } from "./pages/AssistenteIA";
 import { Configuracoes } from "./pages/Configuracoes";
 import { Conversas } from "./pages/Conversas";
 import { Dashboard } from "./pages/Dashboard";
@@ -33,6 +34,7 @@ export function App() {
                 <Route path="/pacientes/:id" element={<PatientDetail />} />
                 <Route path="/conversas" element={<Conversas />} />
                 <Route path="/whatsapp-ia" element={<WhatsappIA />} />
+                <Route path="/assistente-ia" element={<AssistenteIA />} />
                 <Route path="/tipos-atendimento" element={<TiposAtendimento />} />
                 <Route path="/horarios-clinica" element={<HorariosClinica />} />
                 <Route path="/financeiro" element={<Financeiro />} />

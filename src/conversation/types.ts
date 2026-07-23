@@ -1,9 +1,10 @@
-import { Conversation, ConversationFlowState, FlowStateData, User } from "../types";
+import { AiSettings, Conversation, ConversationFlowState, FlowStateData, User } from "../types";
 
 export interface FlowContext {
   user: User;
   conversation: Conversation;
   isFirstMessage: boolean;
+  aiSettings: AiSettings;
 }
 
 export interface ToolSchema {

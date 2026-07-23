@@ -4,6 +4,7 @@ import { LogOutIcon, XIcon } from "./icons";
 
 const ITEMS = [
   { to: "/whatsapp-ia", label: "WhatsApp IA" },
+  { to: "/assistente-ia", label: "Assistente IA" },
   { to: "/tipos-atendimento", label: "Tipos de Atendimento" },
   { to: "/horarios-clinica", label: "Horários da Clínica" },
   { to: "/financeiro", label: "Financeiro" },

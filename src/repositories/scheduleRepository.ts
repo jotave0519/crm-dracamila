@@ -195,6 +195,43 @@ export async function findUserIdsWithUpcoming(afterDate: string): Promise<Set<st
   return new Set((data || []).map((row: any) => row.user_id));
 }
 
+/** Usado pelo Assistente IA (status): agendamentos criados no periodo, exceto os ja cancelados. */
+export async function countCreatedInRange(from: string, to: string): Promise<number> {
+  const { count, error } = await getSupabaseClient()
+    .from("schedules")
+    .select("*", { count: "exact", head: true })
+    .neq("status", "Cancelado")
+    .gte("created_at", from)
+    .lt("created_at", to);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Usado pelo Assistente IA (status): cancelamentos feitos no periodo. */
+export async function countCancelledInRange(from: string, to: string): Promise<number> {
+  const { count, error } = await getSupabaseClient()
+    .from("schedules")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "Cancelado")
+    .gte("updated_at", from)
+    .lt("updated_at", to);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Usado pelo Assistente IA (status): sessoes ja existentes (criadas antes do periodo) que mudaram de horario dentro do periodo - aproximacao, nao ha log de auditoria dedicado. */
+export async function countRescheduledInRange(from: string, to: string): Promise<number> {
+  const { count, error } = await getSupabaseClient()
+    .from("schedules")
+    .select("*", { count: "exact", head: true })
+    .in("status", ["Agendado", "Confirmado"])
+    .gte("updated_at", from)
+    .lt("updated_at", to)
+    .lt("created_at", from);
+  if (error) throw error;
+  return count ?? 0;
+}
+
 /** Usado pelos Relatorios: todas as sessoes no periodo, sem excluir canceladas. */
 export async function listAllInRange(startDate: string, endDate: string): Promise<Schedule[]> {
   const { data, error } = await getSupabaseClient().from("schedules").select("*").gte("date", startDate).lte("date", endDate).order("date", { ascending: true });
