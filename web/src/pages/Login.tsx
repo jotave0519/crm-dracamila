@@ -3,9 +3,13 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
 
+// Clinica de uma unica profissional - so existe uma conta, entao a tela de
+// login pede so a senha (o e-mail continua sendo usado por baixo dos panos
+// para autenticar de verdade no Supabase Auth).
+const ACCOUNT_EMAIL = "dra.teste@dracamila.com";
+
 export function Login() {
   const { session, loading } = useAuth();
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -16,8 +20,8 @@ export function Login() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError("E-mail ou senha inválidos.");
+    const { error } = await supabase.auth.signInWithPassword({ email: ACCOUNT_EMAIL, password });
+    if (error) setError("Senha inválida.");
     setSubmitting(false);
   }
 
@@ -36,13 +40,9 @@ export function Login() {
 
         {error && <div className="error-text">{error}</div>}
 
-        <div style={{ marginBottom: 12 }}>
-          <label className="field-label">E-mail</label>
-          <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
         <div style={{ marginBottom: 20 }}>
           <label className="field-label">Senha</label>
-          <input className="input" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input className="input" type="password" required autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
 
         <button className="btn" type="submit" disabled={submitting} style={{ width: "100%" }}>
