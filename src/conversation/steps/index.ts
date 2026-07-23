@@ -4,15 +4,23 @@ import { cancellationSteps } from "./cancellation";
 import { menuStep } from "./menu";
 import { reschedulingSteps } from "./rescheduling";
 import { schedulingSteps } from "./scheduling";
+import { UPDATE_PATIENT_INFO_TOOL, updatePatientInfo } from "./shared";
 import { SWITCH_HANDLERS, SWITCH_TOOLS } from "./switchFlow";
 
 const ALL_STEPS: StepDefinition[] = [menuStep, ...schedulingSteps, ...reschedulingSteps, ...cancellationSteps];
 
+// Toda etapa ganha a ferramenta de capturar dados de cadastro (e-mail, convenio,
+// profissao, nascimento) - o paciente pode mencionar isso a qualquer momento,
+// nao so durante o agendamento.
 // Fora do MENU, toda etapa tambem ganha as ferramentas de troca de fluxo -
 // sem isso o cliente nao tem como pedir algo diferente no meio de um
 // atendimento em andamento.
 const STEP_MAP = new Map<ConversationFlowState, StepDefinition>(
-  ALL_STEPS.map((step) => [step.id, step.id === "MENU" ? step : { ...step, tools: [...step.tools, ...SWITCH_TOOLS], handlers: { ...step.handlers, ...SWITCH_HANDLERS } }])
+  ALL_STEPS.map((step) => {
+    const extraTools = step.id === "MENU" ? [UPDATE_PATIENT_INFO_TOOL] : [UPDATE_PATIENT_INFO_TOOL, ...SWITCH_TOOLS];
+    const extraHandlers = step.id === "MENU" ? { update_patient_info: updatePatientInfo } : { update_patient_info: updatePatientInfo, ...SWITCH_HANDLERS };
+    return [step.id, { ...step, tools: [...step.tools, ...extraTools], handlers: { ...step.handlers, ...extraHandlers } }];
+  })
 );
 
 const REQUIRED_STATES: ConversationFlowState[] = [

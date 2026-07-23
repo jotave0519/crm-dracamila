@@ -5,6 +5,10 @@ import { logger } from "../utils/logger";
 
 const SCOPE = "evolutionApiClient";
 
+export function isConfigured(): boolean {
+  return Boolean(env.evolutionApiUrl && env.evolutionApiKey && env.evolutionInstanceName);
+}
+
 function requireConfig() {
   const missing = [
     ["EVOLUTION_API_URL", env.evolutionApiUrl],
@@ -72,6 +76,18 @@ export async function getConnectQrCode(): Promise<{ base64: string | null; pairi
     return { base64: response.data?.base64 || response.data?.qrcode?.base64 || null, pairingCode: response.data?.pairingCode || null };
   } catch (err) {
     logger.error(SCOPE, "Falha ao gerar QR code de conexao", err);
+    throw err;
+  }
+}
+
+export async function restartInstance(): Promise<void> {
+  requireConfig();
+  const url = `${env.evolutionApiUrl.replace(/\/$/, "")}/instance/restart/${env.evolutionInstanceName}`;
+  try {
+    await axios.post(url, {}, { headers: { apikey: env.evolutionApiKey }, timeout: 15000 });
+    logger.info(SCOPE, "Instancia reiniciada via CRM");
+  } catch (err) {
+    logger.error(SCOPE, "Falha ao reiniciar instancia", err);
     throw err;
   }
 }

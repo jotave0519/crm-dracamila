@@ -16,6 +16,7 @@ import { Pacientes } from "./pages/Pacientes";
 import { PatientDetail } from "./pages/PatientDetail";
 import { Relatorios } from "./pages/Relatorios";
 import { TiposAtendimento } from "./pages/TiposAtendimento";
+import { WhatsappIA } from "./pages/WhatsappIA";
 
 export function App() {
   return (
@@ -31,6 +32,7 @@ export function App() {
                 <Route path="/pacientes" element={<Pacientes />} />
                 <Route path="/pacientes/:id" element={<PatientDetail />} />
                 <Route path="/conversas" element={<Conversas />} />
+                <Route path="/whatsapp-ia" element={<WhatsappIA />} />
                 <Route path="/tipos-atendimento" element={<TiposAtendimento />} />
                 <Route path="/horarios-clinica" element={<HorariosClinica />} />
                 <Route path="/financeiro" element={<Financeiro />} />

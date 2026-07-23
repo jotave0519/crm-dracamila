@@ -117,7 +117,7 @@ function evolutionField(label: string, value: string | null) {
   );
 }
 
-type Tab = "resumo" | "clinico" | "avaliacao" | "evolucao" | "plano" | "anexos" | "sessoes";
+type Tab = "resumo" | "clinico" | "avaliacao" | "evolucao" | "plano" | "anexos" | "sessoes" | "conversas";
 const TABS: { id: Tab; label: string }[] = [
   { id: "resumo", label: "Resumo" },
   { id: "clinico", label: "Histórico Clínico" },
@@ -126,7 +126,15 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "plano", label: "Plano de Tratamento" },
   { id: "anexos", label: "Anexos" },
   { id: "sessoes", label: "Sessões" },
+  { id: "conversas", label: "Conversas" },
 ];
+
+interface ConversationHistoryItem {
+  id: string;
+  status: "ai" | "human" | "closed";
+  lastMessage: string | null;
+  updated_at: string;
+}
 
 const EMPTY_PLAN_FORM = { treatment_type_id: "", total_sessions: "10", total_price: "", start_date: "", goal: "", status: "ativo" as TreatmentPlan["status"], notes: "" };
 
@@ -187,6 +195,7 @@ export function PatientDetail() {
   const [confirm, setConfirm] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const [deletingPatient, setDeletingPatient] = useState(false);
   const [evolutions, setEvolutions] = useState<Evolution[] | null>(null);
+  const [conversationHistory, setConversationHistory] = useState<ConversationHistoryItem[] | null>(null);
   const [showEvolutionForm, setShowEvolutionForm] = useState(false);
   const [editingEvolutionId, setEditingEvolutionId] = useState<string | null>(null);
   const [evolutionForm, setEvolutionForm] = useState(EMPTY_EVOLUTION_FORM);
@@ -223,6 +232,11 @@ export function PatientDetail() {
     api.get<{ items: Evolution[] }>(`/patients/${id}/evolutions`).then((r) => setEvolutions(r.items)).catch((e) => setError(e.message));
   }
 
+  function loadConversationHistory() {
+    if (!id) return;
+    api.get<{ items: ConversationHistoryItem[] }>(`/patients/${id}/conversations`).then((r) => setConversationHistory(r.items)).catch((e) => setError(e.message));
+  }
+
   useEffect(load, [id]);
   useEffect(() => {
     api.get<{ items: TreatmentTypeOption[] }>("/treatment-types").then((r) => setTreatmentTypes(r.items));
@@ -231,6 +245,7 @@ export function PatientDetail() {
     if (tab === "anexos" && attachments === null) loadAttachments();
     if (tab === "plano" && plans === null) loadPlans();
     if (tab === "evolucao" && evolutions === null) loadEvolutions();
+    if (tab === "conversas" && conversationHistory === null) loadConversationHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
@@ -964,6 +979,30 @@ export function PatientDetail() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {tab === "conversas" && (
+        <div>
+          {conversationHistory === null && <div className="empty-state">Carregando...</div>}
+          {conversationHistory !== null && conversationHistory.length === 0 && (
+            <EmptyState title="Nenhuma conversa registrada" description="Esse paciente ainda não trocou mensagens pelo WhatsApp." />
+          )}
+          {conversationHistory !== null && conversationHistory.length > 0 && (
+            <div className="card" style={{ padding: 0 }}>
+              {conversationHistory.map((c) => (
+                <div key={c.id} className="mobile-list-item" style={{ cursor: "pointer" }} onClick={() => navigate(`/conversas?id=${c.id}`)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(c.updated_at).toLocaleDateString("pt-BR")}</span>
+                    <span className={`badge ${c.status === "human" ? "badge-blue" : c.status === "closed" ? "badge-neutral" : "badge-green"}`}>
+                      {c.status === "human" ? "Humano" : c.status === "closed" ? "Encerrada" : "IA"}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.lastMessage || "—"}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import * as googleCalendar from "../../integrations/googleCalendarClient";
+import * as conversationRepository from "../../repositories/conversationRepository";
 import * as scheduleRepository from "../../repositories/scheduleRepository";
 import * as userRepository from "../../repositories/userRepository";
 import { logger } from "../../utils/logger";
@@ -30,6 +31,22 @@ export async function getPatient(req: Request, res: Response): Promise<void> {
   } catch (err) {
     logger.error(SCOPE, "Erro ao buscar paciente", err);
     res.status(500).json({ error: "Erro ao buscar paciente." });
+  }
+}
+
+/** Historico de conversas do WhatsApp do paciente, mais recente primeiro. */
+export async function getPatientConversations(req: Request, res: Response): Promise<void> {
+  try {
+    const patient = await userRepository.findById(req.params.id);
+    if (!patient) {
+      res.status(404).json({ error: "Paciente nao encontrado." });
+      return;
+    }
+    const items = await conversationRepository.listByPatient(patient.id);
+    res.json({ items });
+  } catch (err) {
+    logger.error(SCOPE, "Erro ao buscar historico de conversas do paciente", err);
+    res.status(500).json({ error: "Erro ao buscar historico de conversas do paciente." });
   }
 }
 

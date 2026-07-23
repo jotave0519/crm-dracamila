@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { ConfirmDialog } from "../components/ConfirmDialog";
 import { MoonIcon, SunIcon } from "../components/icons";
 import { api } from "../lib/api";
 
@@ -21,12 +20,6 @@ interface ClinicSettings {
   days_without_return_threshold: number;
 }
 
-interface StatusData {
-  connectionStatus: string;
-  phone: string | null;
-  profileName: string | null;
-}
-
 export function Configuracoes() {
   const { theme, setTheme } = useTheme();
   const [clinic, setClinic] = useState<ClinicSettings | null>(null);
@@ -34,19 +27,9 @@ export function Configuracoes() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [status, setStatus] = useState<StatusData | null>(null);
-  const [qr, setQr] = useState<{ base64: string | null } | null>(null);
-  const [loadingQr, setLoadingQr] = useState(false);
-  const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
-
   useEffect(() => {
     api.get<{ clinic: ClinicSettings }>("/settings").then((r) => setClinic(r.clinic)).catch((e) => setError(e.message));
-    loadStatus();
   }, []);
-
-  function loadStatus() {
-    api.get<StatusData>("/whatsapp/status").then(setStatus).catch(() => {});
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,28 +47,6 @@ export function Configuracoes() {
     }
   }
 
-  async function handleGenerateQr() {
-    setLoadingQr(true);
-    try {
-      const r = await api.get<{ base64: string | null }>("/whatsapp/qrcode");
-      setQr(r);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoadingQr(false);
-    }
-  }
-
-  async function confirmDisconnect() {
-    setConfirmingDisconnect(false);
-    try {
-      await api.post("/whatsapp/disconnect", {});
-      loadStatus();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }
-
   function field(label: string, key: keyof ClinicSettings) {
     if (!clinic) return null;
     return (
@@ -96,8 +57,6 @@ export function Configuracoes() {
     );
   }
 
-  const connected = status?.connectionStatus === "open";
-
   return (
     <div>
       <h1 className="page-title">Configurações</h1>
@@ -106,27 +65,6 @@ export function Configuracoes() {
       {error && <div className="error-text">{error}</div>}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 680 }}>
-        <div className="card">
-          <div style={{ fontSize: 15, fontWeight: 600 }}>Conexão WhatsApp</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{status?.phone ? `+${status.phone}` : "WhatsApp da clínica"}</div>
-            </div>
-            <span className={`badge ${connected ? "badge-green" : "badge-red"}`}>{status === null ? "..." : connected ? "Conectado" : "Desconectado"}</span>
-          </div>
-          {connected ? (
-            <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={() => setConfirmingDisconnect(true)}>
-              Desconectar
-            </button>
-          ) : qr?.base64 ? (
-            <img src={qr.base64.startsWith("data:") ? qr.base64 : `data:image/png;base64,${qr.base64}`} alt="QR code" style={{ width: 160, height: 160, borderRadius: 12, marginTop: 12 }} />
-          ) : (
-            <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={handleGenerateQr} disabled={loadingQr}>
-              {loadingQr ? "Gerando..." : "Conectar WhatsApp"}
-            </button>
-          )}
-        </div>
-
         <div className="card">
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Preferências</div>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -194,15 +132,6 @@ export function Configuracoes() {
           </form>
         )}
       </div>
-
-      <ConfirmDialog
-        open={confirmingDisconnect}
-        title="Desconectar WhatsApp?"
-        message="A clínica para de receber e responder mensagens pelo WhatsApp até reconectar."
-        confirmLabel="Desconectar"
-        onConfirm={confirmDisconnect}
-        onCancel={() => setConfirmingDisconnect(false)}
-      />
     </div>
   );
 }

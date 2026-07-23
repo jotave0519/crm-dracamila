@@ -10,14 +10,14 @@ import { createInventoryItem, deleteInventoryItem, getSummary as getInventorySum
 import { createMovement, listMovements } from "../controllers/api/inventoryMovementController";
 import { getMe } from "../controllers/api/meController";
 import { deleteAttachment, listAttachments, uploadAttachment, uploadMiddleware } from "../controllers/api/patientAttachmentController";
-import { createPatient, deletePatient, getPatient, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
+import { createPatient, deletePatient, getPatient, getPatientConversations, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
 import { getReminders } from "../controllers/api/reminderController";
 import { getReport } from "../controllers/api/reportController";
 import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, rescheduleSchedule, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
 import { getSettings, updateSettings } from "../controllers/api/settingsController";
 import { createTreatmentPlan, deleteTreatmentPlan, listByPatient as listTreatmentPlansByPatient, updateTreatmentPlan } from "../controllers/api/treatmentPlanController";
 import { createTreatmentType, deleteTreatmentType, listTreatmentTypes, updateTreatmentType } from "../controllers/api/treatmentTypeController";
-import { disconnect, getQrCode, getStatus } from "../controllers/api/whatsappController";
+import { disconnect, getQrCode, getStatus, reconnect } from "../controllers/api/whatsappController";
 import { requireAuth } from "../middleware/requireAuth";
 
 export const apiRouter = Router();
@@ -31,6 +31,7 @@ apiRouter.get("/dashboard", getDashboard);
 apiRouter.get("/patients", listPatients);
 apiRouter.get("/patients/:id", getPatient);
 apiRouter.get("/patients/:id/history", getPatientHistory);
+apiRouter.get("/patients/:id/conversations", getPatientConversations);
 apiRouter.post("/patients", createPatient);
 apiRouter.patch("/patients/:id", updatePatient);
 apiRouter.delete("/patients/:id", deletePatient);
@@ -80,6 +81,7 @@ apiRouter.delete("/business-hours/slots/:id", deleteSlot);
 apiRouter.get("/whatsapp/status", getStatus);
 apiRouter.get("/whatsapp/qrcode", getQrCode);
 apiRouter.post("/whatsapp/disconnect", disconnect);
+apiRouter.post("/whatsapp/reconnect", reconnect);
 
 apiRouter.get("/inventory/summary", getInventorySummary);
 apiRouter.get("/inventory", listInventory);

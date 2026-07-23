@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
@@ -20,8 +21,9 @@ interface Message {
 
 export function Conversas() {
   const isMobile = useIsMobile();
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState<ConversationSummary[] | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(searchParams.get("id"));
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [conversation, setConversation] = useState<ConversationSummary | null>(null);
   const [draft, setDraft] = useState("");

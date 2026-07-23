@@ -10,7 +10,13 @@ const WEB_DIST_DIR = path.join(__dirname, "..", "web-dist");
 const app = express();
 app.use(express.json());
 
-app.post("/webhook", handleWhatsAppWebhook);
+app.post("/webhook/:secret", (req, res, next) => {
+  if (!env.webhookSecret || req.params.secret !== env.webhookSecret) {
+    res.status(401).json({ error: "Segredo do webhook invalido." });
+    return;
+  }
+  next();
+}, handleWhatsAppWebhook);
 app.get("/health", handleHealthCheck);
 app.use("/api/v1", apiRouter);
 

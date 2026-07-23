@@ -11,6 +11,7 @@ export const env = {
   evolutionApiUrl: process.env.EVOLUTION_API_URL || "",
   evolutionApiKey: process.env.EVOLUTION_API_KEY || "",
   evolutionInstanceName: process.env.EVOLUTION_INSTANCE_NAME || "",
+  webhookSecret: process.env.WEBHOOK_SECRET || "",
 
   supabaseUrl: process.env.SUPABASE_URL || "",
   supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || "",

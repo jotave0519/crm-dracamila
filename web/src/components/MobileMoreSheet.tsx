@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { LogOutIcon, XIcon } from "./icons";
 
 const ITEMS = [
+  { to: "/whatsapp-ia", label: "WhatsApp IA" },
   { to: "/tipos-atendimento", label: "Tipos de Atendimento" },
   { to: "/horarios-clinica", label: "Horários da Clínica" },
   { to: "/financeiro", label: "Financeiro" },
