@@ -13,6 +13,20 @@ export async function findById(id: string): Promise<TreatmentPlan | null> {
   return data;
 }
 
+/** Usado pelo card de plano em destaque no Resumo do paciente: plano ativo mais recente. */
+export async function findCurrentByPatient(userId: string): Promise<TreatmentPlan | null> {
+  const { data, error } = await getSupabaseClient()
+    .from("treatment_plans")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "ativo")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
 export async function create(params: {
   userId: string;
   treatmentTypeId?: string | null;
@@ -20,6 +34,8 @@ export async function create(params: {
   totalPrice?: number | null;
   startDate?: string | null;
   goal?: string | null;
+  diagnosis?: string | null;
+  nextReassessmentDate?: string | null;
   status?: TreatmentPlanStatus;
   notes?: string | null;
 }): Promise<TreatmentPlan> {
@@ -32,6 +48,8 @@ export async function create(params: {
       total_price: params.totalPrice ?? null,
       start_date: params.startDate ?? null,
       goal: params.goal ?? null,
+      diagnosis: params.diagnosis ?? null,
+      next_reassessment_date: params.nextReassessmentDate ?? null,
       status: params.status ?? "ativo",
       notes: params.notes ?? null,
     })
@@ -41,7 +59,20 @@ export async function create(params: {
   return data;
 }
 
-export async function update(id: string, params: Partial<{ treatment_type_id: string | null; total_sessions: number; total_price: number | null; start_date: string | null; goal: string | null; status: TreatmentPlanStatus; notes: string | null }>): Promise<TreatmentPlan> {
+export async function update(
+  id: string,
+  params: Partial<{
+    treatment_type_id: string | null;
+    total_sessions: number;
+    total_price: number | null;
+    start_date: string | null;
+    goal: string | null;
+    diagnosis: string | null;
+    next_reassessment_date: string | null;
+    status: TreatmentPlanStatus;
+    notes: string | null;
+  }>
+): Promise<TreatmentPlan> {
   const { data, error } = await getSupabaseClient()
     .from("treatment_plans")
     .update({ ...params, updated_at: new Date().toISOString() })
@@ -59,6 +90,13 @@ export async function remove(id: string): Promise<void> {
 
 export async function countCompletedSessions(planId: string): Promise<number> {
   const { count, error } = await getSupabaseClient().from("schedules").select("*", { count: "exact", head: true }).eq("treatment_plan_id", planId).eq("status", "Concluido");
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Usado pelo Dashboard: quantos pacientes distintos ja concluiram tratamento. */
+export async function countByStatus(status: TreatmentPlanStatus): Promise<number> {
+  const { count, error } = await getSupabaseClient().from("treatment_plans").select("*", { count: "exact", head: true }).eq("status", status);
   if (error) throw error;
   return count ?? 0;
 }

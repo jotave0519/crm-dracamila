@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { BackHeader } from "../components/BackHeader";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
+import { EvolutionLineChart } from "../components/EvolutionLineChart";
 import { api } from "../lib/api";
 
 interface Patient {
@@ -63,6 +64,8 @@ interface TreatmentPlan {
   total_price: number | null;
   start_date: string | null;
   goal: string | null;
+  diagnosis: string | null;
+  next_reassessment_date: string | null;
   status: "ativo" | "concluido" | "cancelado";
   notes: string | null;
   sessionsCompleted: number;
@@ -76,6 +79,9 @@ interface Evolution {
   evolution_date: string;
   main_complaint: string | null;
   pain_scale: number | null;
+  mobility_score: number | null;
+  strength_score: number | null;
+  rom_score: number | null;
   treated_region: string | null;
   treatment_performed: string | null;
   techniques_used: string | null;
@@ -85,8 +91,37 @@ interface Evolution {
   next_goals: string | null;
 }
 
+interface TimelineEvent {
+  id: string;
+  date: string;
+  type: string;
+  label: string;
+  detail: string | null;
+  noteId: string | null;
+}
+
 const STATUS_BADGE: Record<string, string> = { Agendado: "badge-blue", Confirmado: "badge-yellow", Concluido: "badge-green", Faltou: "badge-red", Cancelado: "badge-neutral" };
 const PLAN_STATUS_BADGE: Record<string, string> = { ativo: "badge-blue", concluido: "badge-green", cancelado: "badge-neutral" };
+
+const TIMELINE_ICONS: Record<string, string> = {
+  primeira_avaliacao: "🩺",
+  sessao_realizada: "✅",
+  sessao_remarcada: "🔁",
+  paciente_faltou: "⚠️",
+  consulta_cancelada: "❌",
+  pagamento: "💰",
+  evolucao: "📈",
+  plano_iniciado: "📋",
+  plano_concluido: "🎉",
+  nota_manual: "📝",
+};
+
+const TIMELINE_COLORS: Record<string, string> = {
+  paciente_faltou: "var(--red)",
+  consulta_cancelada: "var(--red)",
+  plano_concluido: "var(--green)",
+  pagamento: "var(--green)",
+};
 
 function formatMoney(v: number | null): string {
   if (v == null) return "—";
@@ -117,13 +152,14 @@ function evolutionField(label: string, value: string | null) {
   );
 }
 
-type Tab = "resumo" | "clinico" | "avaliacao" | "evolucao" | "plano" | "anexos" | "sessoes" | "conversas";
+type Tab = "resumo" | "clinico" | "avaliacao" | "evolucao" | "plano" | "linha_do_tempo" | "anexos" | "sessoes" | "conversas";
 const TABS: { id: Tab; label: string }[] = [
   { id: "resumo", label: "Resumo" },
   { id: "clinico", label: "Histórico Clínico" },
   { id: "avaliacao", label: "Avaliação Física" },
   { id: "evolucao", label: "Evolução" },
   { id: "plano", label: "Plano de Tratamento" },
+  { id: "linha_do_tempo", label: "Linha do Tempo" },
   { id: "anexos", label: "Anexos" },
   { id: "sessoes", label: "Sessões" },
   { id: "conversas", label: "Conversas" },
@@ -136,13 +172,26 @@ interface ConversationHistoryItem {
   updated_at: string;
 }
 
-const EMPTY_PLAN_FORM = { treatment_type_id: "", total_sessions: "10", total_price: "", start_date: "", goal: "", status: "ativo" as TreatmentPlan["status"], notes: "" };
+const EMPTY_PLAN_FORM = {
+  treatment_type_id: "",
+  total_sessions: "10",
+  total_price: "",
+  start_date: "",
+  goal: "",
+  diagnosis: "",
+  next_reassessment_date: "",
+  status: "ativo" as TreatmentPlan["status"],
+  notes: "",
+};
 
 const EMPTY_EVOLUTION_FORM = {
   schedule_id: "",
   evolution_date: toIso(new Date()),
   main_complaint: "",
   pain_scale: "",
+  mobility_score: "",
+  strength_score: "",
+  rom_score: "",
   treated_region: "",
   treatment_performed: "",
   techniques_used: "",
@@ -204,6 +253,11 @@ export function PatientDetail() {
   const [evolutionAttachments, setEvolutionAttachments] = useState<Attachment[] | null>(null);
   const [evolutionUploadCategory, setEvolutionUploadCategory] = useState<Attachment["category"]>("foto");
   const [uploadingEvolutionAttachment, setUploadingEvolutionAttachment] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<TreatmentPlan | null | undefined>(undefined);
+  const [timeline, setTimeline] = useState<TimelineEvent[] | null>(null);
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteForm, setNoteForm] = useState({ event_date: toIso(new Date()), note: "" });
+  const [savingNote, setSavingNote] = useState(false);
 
   function load() {
     if (!id) return;
@@ -237,17 +291,72 @@ export function PatientDetail() {
     api.get<{ items: ConversationHistoryItem[] }>(`/patients/${id}/conversations`).then((r) => setConversationHistory(r.items)).catch((e) => setError(e.message));
   }
 
+  function loadCurrentPlan() {
+    if (!id) return;
+    api.get<{ plan: TreatmentPlan | null }>(`/patients/${id}/treatment-plans/current`).then((r) => setCurrentPlan(r.plan)).catch(() => setCurrentPlan(null));
+  }
+
+  function loadTimeline() {
+    if (!id) return;
+    api.get<{ items: TimelineEvent[] }>(`/patients/${id}/timeline`).then((r) => setTimeline(r.items)).catch((e) => setError(e.message));
+  }
+
+  async function handleAddNote(e: FormEvent) {
+    e.preventDefault();
+    if (!id) return;
+    setSavingNote(true);
+    setError(null);
+    try {
+      await api.post(`/patients/${id}/timeline-notes`, noteForm);
+      setShowNoteForm(false);
+      setNoteForm({ event_date: toIso(new Date()), note: "" });
+      loadTimeline();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSavingNote(false);
+    }
+  }
+
+  function handleDeleteNote(noteId: string) {
+    setConfirm({
+      title: "Excluir evento?",
+      message: "Esse evento manual será removido da linha do tempo.",
+      onConfirm: async () => {
+        setConfirm(null);
+        try {
+          await api.delete(`/timeline-notes/${noteId}`);
+          loadTimeline();
+        } catch (e: any) {
+          setError(e.message);
+        }
+      },
+    });
+  }
+
   useEffect(load, [id]);
   useEffect(() => {
     api.get<{ items: TreatmentTypeOption[] }>("/treatment-types").then((r) => setTreatmentTypes(r.items));
   }, []);
+  useEffect(loadCurrentPlan, [id]);
   useEffect(() => {
     if (tab === "anexos" && attachments === null) loadAttachments();
     if (tab === "plano" && plans === null) loadPlans();
     if (tab === "evolucao" && evolutions === null) loadEvolutions();
     if (tab === "conversas" && conversationHistory === null) loadConversationHistory();
+    if (tab === "linha_do_tempo" && timeline === null) loadTimeline();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("newPlan") === "1") {
+      setTab("plano");
+      setEditingPlanId(null);
+      setPlanForm(EMPTY_PLAN_FORM);
+      setShowPlanForm(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   function treatmentTypeName(treatmentTypeId: string | null): string {
     return treatmentTypes.find((t) => t.id === treatmentTypeId)?.name || "—";
@@ -267,6 +376,8 @@ export function PatientDetail() {
       total_price: p.total_price != null ? String(p.total_price) : "",
       start_date: p.start_date || "",
       goal: p.goal || "",
+      diagnosis: p.diagnosis || "",
+      next_reassessment_date: p.next_reassessment_date || "",
       status: p.status,
       notes: p.notes || "",
     });
@@ -285,6 +396,8 @@ export function PatientDetail() {
         total_price: planForm.total_price ? Number(planForm.total_price) : null,
         start_date: planForm.start_date || null,
         goal: planForm.goal || null,
+        diagnosis: planForm.diagnosis || null,
+        next_reassessment_date: planForm.next_reassessment_date || null,
         status: planForm.status,
         notes: planForm.notes || null,
       };
@@ -292,6 +405,7 @@ export function PatientDetail() {
       else await api.post(`/patients/${id}/treatment-plans`, payload);
       setShowPlanForm(false);
       loadPlans();
+      loadCurrentPlan();
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -308,6 +422,7 @@ export function PatientDetail() {
         try {
           await api.delete(`/treatment-plans/${p.id}`);
           loadPlans();
+          loadCurrentPlan();
         } catch (e: any) {
           setError(e.message);
         }
@@ -347,6 +462,9 @@ export function PatientDetail() {
       evolution_date: ev.evolution_date,
       main_complaint: ev.main_complaint || "",
       pain_scale: ev.pain_scale != null ? String(ev.pain_scale) : "",
+      mobility_score: ev.mobility_score != null ? String(ev.mobility_score) : "",
+      strength_score: ev.strength_score != null ? String(ev.strength_score) : "",
+      rom_score: ev.rom_score != null ? String(ev.rom_score) : "",
       treated_region: ev.treated_region || "",
       treatment_performed: ev.treatment_performed || "",
       techniques_used: ev.techniques_used || "",
@@ -370,6 +488,9 @@ export function PatientDetail() {
         evolution_date: evolutionForm.evolution_date,
         main_complaint: evolutionForm.main_complaint || null,
         pain_scale: evolutionForm.pain_scale !== "" ? Number(evolutionForm.pain_scale) : null,
+        mobility_score: evolutionForm.mobility_score !== "" ? Number(evolutionForm.mobility_score) : null,
+        strength_score: evolutionForm.strength_score !== "" ? Number(evolutionForm.strength_score) : null,
+        rom_score: evolutionForm.rom_score !== "" ? Number(evolutionForm.rom_score) : null,
         treated_region: evolutionForm.treated_region || null,
         treatment_performed: evolutionForm.treatment_performed || null,
         techniques_used: evolutionForm.techniques_used || null,
@@ -414,6 +535,9 @@ export function PatientDetail() {
         evolution_date: toIso(new Date()),
         main_complaint: ev.main_complaint,
         pain_scale: ev.pain_scale,
+        mobility_score: ev.mobility_score,
+        strength_score: ev.strength_score,
+        rom_score: ev.rom_score,
         treated_region: ev.treated_region,
         treatment_performed: ev.treatment_performed,
         techniques_used: ev.techniques_used,
@@ -580,7 +704,69 @@ export function PatientDetail() {
       </div>
 
       {tab === "resumo" && (
-        <div className="card" style={{ maxWidth: 560 }}>
+        <div style={{ maxWidth: 560 }}>
+          {currentPlan !== undefined && (
+            <div className="card" style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Plano de Tratamento</div>
+                {currentPlan && (
+                  <span className={`badge ${PLAN_STATUS_BADGE[currentPlan.status]}`}>
+                    {currentPlan.status === "ativo" ? "🟢 Em andamento" : currentPlan.status === "concluido" ? "✅ Concluído" : "Cancelado"}
+                  </span>
+                )}
+              </div>
+
+              {!currentPlan && (
+                <div>
+                  <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12 }}>Nenhum plano de tratamento ativo no momento.</div>
+                  <button className="btn btn-secondary" onClick={() => { setTab("plano"); startCreatePlan(); }}>
+                    Criar plano de tratamento
+                  </button>
+                </div>
+              )}
+
+              {currentPlan && (
+                <div>
+                  {currentPlan.diagnosis && (
+                    <div style={{ fontSize: 12.5, marginBottom: 4 }}>
+                      <span style={{ color: "var(--text-muted)" }}>Diagnóstico: </span>
+                      {currentPlan.diagnosis}
+                    </div>
+                  )}
+                  {currentPlan.goal && (
+                    <div style={{ fontSize: 12.5, marginBottom: 10 }}>
+                      <span style={{ color: "var(--text-muted)" }}>Objetivo: </span>
+                      {currentPlan.goal}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 6 }}>
+                    {currentPlan.sessionsCompleted} de {currentPlan.total_sessions} sessões concluídas
+                  </div>
+                  <div style={{ height: 8, borderRadius: 4, background: "var(--border-soft)", overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${currentPlan.total_sessions > 0 ? Math.min((currentPlan.sessionsCompleted / currentPlan.total_sessions) * 100, 100) : 0}%`,
+                        background: currentPlan.sessionsRemaining === 1 ? "var(--red)" : currentPlan.sessionsRemaining === 2 ? "var(--yellow)" : "var(--accent)",
+                        borderRadius: 4,
+                      }}
+                    />
+                  </div>
+                  {currentPlan.next_reassessment_date && (
+                    <div style={{ fontSize: 12.5, marginTop: 10 }}>
+                      <span style={{ color: "var(--text-muted)" }}>Próxima reavaliação: </span>
+                      {new Date(`${currentPlan.next_reassessment_date}T12:00:00`).toLocaleDateString("pt-BR")}
+                    </div>
+                  )}
+                  <button className="btn btn-secondary" style={{ marginTop: 14, fontSize: 12.5, height: 32, padding: "0 12px" }} onClick={() => setTab("plano")}>
+                    Ver detalhes
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="card">
           <div style={{ display: "grid", gap: 12 }}>
             <div>
               <label className="field-label">Nome</label>
@@ -624,6 +810,7 @@ export function PatientDetail() {
             <button className="btn-danger" onClick={handleDeletePatient} disabled={deletingPatient}>
               {deletingPatient ? "Excluindo..." : "Excluir paciente"}
             </button>
+          </div>
           </div>
         </div>
       )}
@@ -688,6 +875,29 @@ export function PatientDetail() {
             </button>
           </div>
 
+          {evolutions && evolutions.length >= 2 && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, marginBottom: 20 }}>
+              {[
+                { key: "pain_scale" as const, label: "Escala de dor", color: "var(--red)" },
+                { key: "mobility_score" as const, label: "Mobilidade", color: "var(--accent)" },
+                { key: "strength_score" as const, label: "Força", color: "var(--green)" },
+                { key: "rom_score" as const, label: "Amplitude de movimento", color: "var(--accent-dark)" },
+              ].map(({ key, label, color }) => {
+                const chartData = [...evolutions]
+                  .reverse()
+                  .map((e, i) => ({ label: `S${i + 1}`, value: e[key] }))
+                  .filter((d): d is { label: string; value: number } => d.value != null);
+                if (chartData.length < 2) return null;
+                return (
+                  <div key={key} className="card">
+                    <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>{label}</div>
+                    <EvolutionLineChart data={chartData} color={color} ariaLabel={`Evolução de ${label.toLowerCase()} por sessão`} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {showEvolutionForm && (
             <div className="card" style={{ maxWidth: 560, marginBottom: 20 }}>
               <form onSubmit={handleSaveEvolution} style={{ display: "grid", gap: 12 }}>
@@ -707,6 +917,20 @@ export function PatientDetail() {
                       value={evolutionForm.pain_scale}
                       onChange={(e) => setEvolutionForm({ ...evolutionForm, pain_scale: e.target.value })}
                     />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">Mobilidade (0-10)</label>
+                    <input className="input" type="number" min={0} max={10} value={evolutionForm.mobility_score} onChange={(e) => setEvolutionForm({ ...evolutionForm, mobility_score: e.target.value })} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">Força (0-10)</label>
+                    <input className="input" type="number" min={0} max={10} value={evolutionForm.strength_score} onChange={(e) => setEvolutionForm({ ...evolutionForm, strength_score: e.target.value })} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">Amplitude de movimento (0-10)</label>
+                    <input className="input" type="number" min={0} max={10} value={evolutionForm.rom_score} onChange={(e) => setEvolutionForm({ ...evolutionForm, rom_score: e.target.value })} />
                   </div>
                 </div>
                 <div>
@@ -843,9 +1067,19 @@ export function PatientDetail() {
                     <input className="input" type="number" step="0.01" value={planForm.total_price} onChange={(e) => setPlanForm({ ...planForm, total_price: e.target.value })} />
                   </div>
                 </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">Data de início</label>
+                    <input className="input" type="date" value={planForm.start_date} onChange={(e) => setPlanForm({ ...planForm, start_date: e.target.value })} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="field-label">Próxima reavaliação</label>
+                    <input className="input" type="date" value={planForm.next_reassessment_date} onChange={(e) => setPlanForm({ ...planForm, next_reassessment_date: e.target.value })} />
+                  </div>
+                </div>
                 <div>
-                  <label className="field-label">Data de início</label>
-                  <input className="input" type="date" value={planForm.start_date} onChange={(e) => setPlanForm({ ...planForm, start_date: e.target.value })} />
+                  <label className="field-label">Diagnóstico principal</label>
+                  <input className="input" value={planForm.diagnosis} onChange={(e) => setPlanForm({ ...planForm, diagnosis: e.target.value })} />
                 </div>
                 <div>
                   <label className="field-label">Objetivo do tratamento</label>
@@ -878,20 +1112,31 @@ export function PatientDetail() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
             {plans?.map((p) => {
               const progress = p.total_sessions > 0 ? Math.min((p.sessionsCompleted / p.total_sessions) * 100, 100) : 0;
+              const nearEnd = p.status === "ativo" && p.sessionsRemaining >= 1 && p.sessionsRemaining <= 2;
+              const barColor = p.status === "ativo" && p.sessionsRemaining === 1 ? "var(--red)" : p.status === "ativo" && p.sessionsRemaining === 2 ? "var(--yellow)" : "var(--accent)";
               return (
-                <div key={p.id} className="card">
+                <div key={p.id} className="card" style={nearEnd ? { borderColor: p.sessionsRemaining === 1 ? "var(--red)" : "var(--yellow)" } : undefined}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 600 }}>{treatmentTypeName(p.treatment_type_id)}</div>
                     <span className={`badge ${PLAN_STATUS_BADGE[p.status]}`}>{p.status}</span>
                   </div>
+                  {p.diagnosis && <div style={{ fontSize: 12.5, marginTop: 6 }}>Diagnóstico: {p.diagnosis}</div>}
                   <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}>
                     {p.sessionsCompleted} de {p.total_sessions} sessões realizadas ({p.sessionsRemaining} restantes)
                   </div>
                   <div style={{ height: 6, borderRadius: 3, background: "var(--border-soft)", marginTop: 8, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${progress}%`, background: "var(--accent)", borderRadius: 3 }} />
+                    <div style={{ height: "100%", width: `${progress}%`, background: barColor, borderRadius: 3 }} />
                   </div>
+                  {nearEnd && (
+                    <div style={{ fontSize: 12, fontWeight: 600, marginTop: 8, color: p.sessionsRemaining === 1 ? "var(--red)" : "var(--yellow)" }}>
+                      {p.sessionsRemaining === 1 ? "Última sessão disponível" : "Restam apenas 2 sessões"}
+                    </div>
+                  )}
                   {p.total_price != null && <div style={{ fontSize: 12.5, marginTop: 8 }}>Valor total: {formatMoney(p.total_price)}</div>}
                   {p.goal && <div style={{ fontSize: 12.5, marginTop: 6 }}>Objetivo: {p.goal}</div>}
+                  {p.next_reassessment_date && (
+                    <div style={{ fontSize: 12.5, marginTop: 6 }}>Próxima reavaliação: {new Date(`${p.next_reassessment_date}T12:00:00`).toLocaleDateString("pt-BR")}</div>
+                  )}
                   <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
                     <button className="btn btn-secondary" style={{ flex: 1, height: 34, fontSize: 12.5 }} onClick={() => startEditPlan(p)}>
                       Editar
@@ -904,6 +1149,71 @@ export function PatientDetail() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {tab === "linha_do_tempo" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+            <button className="btn" onClick={() => setShowNoteForm(true)}>
+              + Adicionar evento
+            </button>
+          </div>
+
+          {showNoteForm && (
+            <div className="card" style={{ maxWidth: 480, marginBottom: 20 }}>
+              <form onSubmit={handleAddNote} style={{ display: "grid", gap: 12 }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Novo evento</div>
+                <div>
+                  <label className="field-label">Data</label>
+                  <input className="input" type="date" required value={noteForm.event_date} onChange={(e) => setNoteForm({ ...noteForm, event_date: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">O que aconteceu</label>
+                  <textarea className="input" rows={2} required placeholder="Ex: Paciente iniciou academia" value={noteForm.note} onChange={(e) => setNoteForm({ ...noteForm, note: e.target.value })} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button className="btn" type="submit" disabled={savingNote}>
+                    {savingNote ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button className="btn btn-secondary" type="button" onClick={() => setShowNoteForm(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {timeline === null && <div className="empty-state">Carregando...</div>}
+          {timeline && timeline.length === 0 && <EmptyState title="Nenhum evento ainda" description="Conforme o paciente for utilizando o sistema, os eventos aparecem aqui automaticamente." />}
+          {timeline && timeline.length > 0 && (
+            <div>
+              {timeline.map((ev, i) => (
+                <div key={ev.id} style={{ display: "flex", gap: 14 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 12, flex: "0 0 12px" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: TIMELINE_COLORS[ev.type] || "var(--accent)", marginTop: 8, flex: "0 0 auto" }} />
+                    {i < timeline.length - 1 && <div style={{ width: 2, flex: 1, background: "var(--border-soft)", marginTop: 4 }} />}
+                  </div>
+                  <div className="card" style={{ flex: 1, marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+                          {TIMELINE_ICONS[ev.type] || "•"} {ev.label}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(`${ev.date}T12:00:00`).toLocaleDateString("pt-BR")}</div>
+                      </div>
+                      {ev.noteId && (
+                        <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDeleteNote(ev.noteId!)}>
+                          Excluir
+                        </button>
+                      )}
+                    </div>
+                    {ev.detail && <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 6 }}>{ev.detail}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1018,6 +1328,14 @@ export function PatientDetail() {
                 <span className={`badge ${painScaleBadge(viewingEvolution.pain_scale)!.className}`}>{painScaleBadge(viewingEvolution.pain_scale)!.label}</span>
               )}
             </div>
+
+            {(viewingEvolution.mobility_score != null || viewingEvolution.strength_score != null || viewingEvolution.rom_score != null) && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                {viewingEvolution.mobility_score != null && <span className="badge badge-neutral">Mobilidade {viewingEvolution.mobility_score}/10</span>}
+                {viewingEvolution.strength_score != null && <span className="badge badge-neutral">Força {viewingEvolution.strength_score}/10</span>}
+                {viewingEvolution.rom_score != null && <span className="badge badge-neutral">ADM {viewingEvolution.rom_score}/10</span>}
+              </div>
+            )}
 
             <div style={{ marginTop: 20, paddingTop: 20, borderTop: "1px solid var(--border-soft)" }}>
               {evolutionField("Queixa do paciente", viewingEvolution.main_complaint)}

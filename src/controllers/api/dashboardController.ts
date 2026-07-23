@@ -2,7 +2,9 @@ import { Request, Response } from "express";
 import * as financialTransactionRepository from "../../repositories/financialTransactionRepository";
 import * as inventoryRepository from "../../repositories/inventoryRepository";
 import * as scheduleRepository from "../../repositories/scheduleRepository";
+import * as treatmentPlanRepository from "../../repositories/treatmentPlanRepository";
 import * as userRepository from "../../repositories/userRepository";
+import * as reminderService from "../../services/reminderService";
 import { logger } from "../../utils/logger";
 
 const SCOPE = "api.dashboard";
@@ -108,6 +110,9 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
       revenuePaidRows,
       scheduleRows,
       newPatientRows,
+      patientsWithoutReturn,
+      activePlans,
+      patientsCompletedTreatment,
     ] = await Promise.all([
       scheduleRepository.findAllByDate(today),
       scheduleRepository.findNextUpcoming(today, currentTime),
@@ -125,7 +130,15 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
       financialTransactionRepository.listPaidSince(sixMonthsStart),
       scheduleRepository.listAllInRange(sixMonthsStart, today),
       userRepository.listCreatedSince(sixMonthsStart),
+      reminderService.getPatientsWithoutReturn(),
+      treatmentPlanRepository.listActiveWithCompletedCount(),
+      treatmentPlanRepository.countByStatus("concluido"),
     ]);
+
+    const packagesEndingSoon = activePlans
+      .map((p) => ({ ...p, sessionsRemaining: Math.max(p.total_sessions - p.sessionsCompleted, 0) }))
+      .filter((p) => p.sessionsRemaining >= 1 && p.sessionsRemaining <= 2)
+      .sort((a, b) => a.sessionsRemaining - b.sessionsRemaining);
 
     const revenueByMonth = bucketByMonth(
       revenuePaidRows.filter((r) => r.type === "receita"),
@@ -159,6 +172,9 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
         patientsInTreatment,
         lowStockCount,
         birthdaysThisMonthCount: birthdays.length,
+        patientsCompletedTreatment,
+        patientsWithoutReturnCount: patientsWithoutReturn.length,
+        patientsNearingDischarge: packagesEndingSoon.length,
       },
       nextAppointment: nextAppointment
         ? { id: nextAppointment.id, patient_name: nextAppointment.patient_name, procedure: nextAppointment.procedure, date: nextAppointment.date, time: nextAppointment.time, status: nextAppointment.status }
@@ -169,6 +185,16 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
       birthdays: birthdays
         .map((b) => ({ id: b.id, name: b.name, day: Number(b.birth_date.slice(8, 10)) }))
         .sort((a, b) => a.day - b.day),
+      patientsWithoutReturn: patientsWithoutReturn
+        .sort((a, b) => b.daysSince - a.daysSince)
+        .slice(0, 5)
+        .map((p) => ({ patientId: p.patientId, patientName: p.patientName, phone: p.phone, daysSince: p.daysSince })),
+      packagesEndingSoon: packagesEndingSoon.slice(0, 5).map((p) => ({
+        planId: p.id,
+        patientId: p.user_id,
+        patientName: p.patientName,
+        sessionsRemaining: p.sessionsRemaining,
+      })),
       charts: {
         revenueByMonth,
         sessionsByMonth,

@@ -21,6 +21,9 @@ export async function createEvolution(req: Request, res: Response): Promise<void
       evolution_date,
       main_complaint,
       pain_scale,
+      mobility_score,
+      strength_score,
+      rom_score,
       treated_region,
       treatment_performed,
       techniques_used,
@@ -30,13 +33,18 @@ export async function createEvolution(req: Request, res: Response): Promise<void
       next_goals,
     } = req.body;
 
+    const toScore = (v: unknown) => (v != null && v !== "" ? Number(v) : null);
+
     const evolution = await clinicalEvolutionRepository.create({
       userId: req.params.id,
       staffId: req.staff!.id,
       scheduleId: schedule_id || null,
       evolutionDate: evolution_date || undefined,
       mainComplaint: main_complaint || null,
-      painScale: pain_scale != null && pain_scale !== "" ? Number(pain_scale) : null,
+      painScale: toScore(pain_scale),
+      mobilityScore: toScore(mobility_score),
+      strengthScore: toScore(strength_score),
+      romScore: toScore(rom_score),
       treatedRegion: treated_region || null,
       treatmentPerformed: treatment_performed || null,
       techniquesUsed: techniques_used || null,
@@ -57,6 +65,9 @@ const UPDATABLE_FIELDS = [
   "evolution_date",
   "main_complaint",
   "pain_scale",
+  "mobility_score",
+  "strength_score",
+  "rom_score",
   "treated_region",
   "treatment_performed",
   "techniques_used",
@@ -66,11 +77,16 @@ const UPDATABLE_FIELDS = [
   "next_goals",
 ] as const;
 
+const SCORE_FIELDS = ["pain_scale", "mobility_score", "strength_score", "rom_score"] as const;
+
 export async function updateEvolution(req: Request, res: Response): Promise<void> {
   try {
     const params: Record<string, unknown> = {};
     for (const field of UPDATABLE_FIELDS) {
-      if (field in req.body) params[field] = field === "pain_scale" && req.body[field] !== null ? Number(req.body[field]) : req.body[field];
+      if (field in req.body) {
+        const isScore = (SCORE_FIELDS as readonly string[]).includes(field);
+        params[field] = isScore && req.body[field] !== null && req.body[field] !== "" ? Number(req.body[field]) : req.body[field] === "" ? null : req.body[field];
+      }
     }
     const evolution = await clinicalEvolutionRepository.update(req.params.id, params);
     res.json(evolution);

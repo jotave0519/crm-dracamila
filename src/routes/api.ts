@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getAiSettings, getStatus as getAiStatus, previewReactivationCampaign, sendReactivationCampaign, updateAiSettings } from "../controllers/api/aiSettingsController";
 import { createException, deleteException, listExceptions, updateException } from "../controllers/api/businessHourExceptionController";
 import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotController";
-import { getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
+import { ensureConversation, getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
 import { createEvolution, deleteEvolution, listEvolutions, updateEvolution } from "../controllers/api/clinicalEvolutionController";
 import { getDashboard } from "../controllers/api/dashboardController";
 import { createCategory, deleteCategory, listCategories, updateCategory } from "../controllers/api/financialCategoryController";
@@ -16,8 +16,9 @@ import { getReminders } from "../controllers/api/reminderController";
 import { getReport } from "../controllers/api/reportController";
 import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, rescheduleSchedule, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
 import { getSettings, updateSettings } from "../controllers/api/settingsController";
-import { createTreatmentPlan, deleteTreatmentPlan, listByPatient as listTreatmentPlansByPatient, updateTreatmentPlan } from "../controllers/api/treatmentPlanController";
+import { createTreatmentPlan, deleteTreatmentPlan, getCurrentPlan, listByPatient as listTreatmentPlansByPatient, updateTreatmentPlan } from "../controllers/api/treatmentPlanController";
 import { createTreatmentType, deleteTreatmentType, listTreatmentTypes, updateTreatmentType } from "../controllers/api/treatmentTypeController";
+import { createTimelineNote, deleteTimelineNote, getTimeline } from "../controllers/api/timelineController";
 import { disconnect, getQrCode, getStatus, reconnect } from "../controllers/api/whatsappController";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -42,9 +43,14 @@ apiRouter.post("/patients/:id/attachments", uploadMiddleware, uploadAttachment);
 apiRouter.delete("/patients/:id/attachments/:attachmentId", deleteAttachment);
 
 apiRouter.get("/patients/:id/treatment-plans", listTreatmentPlansByPatient);
+apiRouter.get("/patients/:id/treatment-plans/current", getCurrentPlan);
 apiRouter.post("/patients/:id/treatment-plans", createTreatmentPlan);
 apiRouter.patch("/treatment-plans/:id", updateTreatmentPlan);
 apiRouter.delete("/treatment-plans/:id", deleteTreatmentPlan);
+
+apiRouter.get("/patients/:id/timeline", getTimeline);
+apiRouter.post("/patients/:id/timeline-notes", createTimelineNote);
+apiRouter.delete("/timeline-notes/:id", deleteTimelineNote);
 
 apiRouter.get("/schedules", listSchedules);
 apiRouter.post("/schedules", createSchedule);
@@ -63,6 +69,7 @@ apiRouter.get("/conversations", listConversations);
 apiRouter.get("/conversations/:id", getConversation);
 apiRouter.post("/conversations/:id/messages", sendMessage);
 apiRouter.patch("/conversations/:id/status", updateStatus);
+apiRouter.post("/patients/:id/conversations/ensure", ensureConversation);
 
 apiRouter.get("/treatment-types", listTreatmentTypes);
 apiRouter.post("/treatment-types", createTreatmentType);

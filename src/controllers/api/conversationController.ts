@@ -55,6 +55,17 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
   }
 }
 
+/** Usado pelo botao "Entrar em contato": garante que existe uma conversa pra abrir na aba Conversas, sem enviar nenhuma mensagem. */
+export async function ensureConversation(req: Request, res: Response): Promise<void> {
+  try {
+    const conversation = await conversationRepository.findOrCreateActiveConversation(req.params.id);
+    res.json({ id: conversation.id });
+  } catch (err) {
+    logger.error(SCOPE, "Erro ao garantir conversa do paciente", err);
+    res.status(500).json({ error: "Erro ao garantir conversa do paciente." });
+  }
+}
+
 export async function updateStatus(req: Request, res: Response): Promise<void> {
   try {
     const { status } = req.body;

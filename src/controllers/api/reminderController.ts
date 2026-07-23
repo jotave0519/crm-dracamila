@@ -1,18 +1,12 @@
 import { Request, Response } from "express";
 import * as financialTransactionRepository from "../../repositories/financialTransactionRepository";
 import * as scheduleRepository from "../../repositories/scheduleRepository";
-import * as settingsRepository from "../../repositories/settingsRepository";
 import * as treatmentPlanRepository from "../../repositories/treatmentPlanRepository";
-import * as userRepository from "../../repositories/userRepository";
+import * as reminderService from "../../services/reminderService";
 import { logger } from "../../utils/logger";
 
 const SCOPE = "api.reminder";
 const TIMEZONE = "America/Sao_Paulo";
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function todayIso(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: TIMEZONE });
-}
 
 function tomorrowIso(): string {
   const d = new Date();
@@ -22,32 +16,14 @@ function tomorrowIso(): string {
 
 export async function getReminders(_req: Request, res: Response): Promise<void> {
   try {
-    const today = todayIso();
     const tomorrow = tomorrowIso();
 
-    const [clinicSettings, activePatients, lastActivity, upcomingUserIds, activePlans, tomorrowSchedules, pendingRevenue] = await Promise.all([
-      settingsRepository.getClinicSettings(),
-      userRepository.listAll({ limit: 1000 }),
-      scheduleRepository.findLastActivityPerUser(today),
-      scheduleRepository.findUserIdsWithUpcoming(today),
+    const [withoutReturn, activePlans, tomorrowSchedules, pendingRevenue] = await Promise.all([
+      reminderService.getPatientsWithoutReturn(),
       treatmentPlanRepository.listActiveWithCompletedCount(),
       scheduleRepository.findAllByDate(tomorrow),
       financialTransactionRepository.listPendingRevenue(),
     ]);
-
-    const thresholdMs = clinicSettings.days_without_return_threshold * DAY_MS;
-    const nowMs = Date.now();
-
-    const withoutReturn = activePatients.items
-      .filter((p) => p.active && !upcomingUserIds.has(p.id))
-      .map((p) => {
-        const last = lastActivity[p.id];
-        if (!last) return null;
-        const diffMs = nowMs - new Date(`${last}T00:00:00`).getTime();
-        if (diffMs < thresholdMs) return null;
-        return { patientId: p.id, patientName: p.name, phone: p.phone, lastActivity: last, daysSince: Math.floor(diffMs / DAY_MS) };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
 
     const finishedTreatments = activePlans
       .filter((p) => p.sessionsCompleted >= p.total_sessions)

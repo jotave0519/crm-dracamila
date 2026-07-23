@@ -72,6 +72,8 @@ export interface TreatmentPlan {
   total_price: number | null;
   start_date: string | null;
   goal: string | null;
+  diagnosis: string | null;
+  next_reassessment_date: string | null;
   status: TreatmentPlanStatus;
   notes: string | null;
   created_at: string;
@@ -123,6 +125,9 @@ export interface ClinicalEvolution {
   evolution_date: string;
   main_complaint: string | null;
   pain_scale: number | null;
+  mobility_score: number | null;
+  strength_score: number | null;
+  rom_score: number | null;
   treated_region: string | null;
   treatment_performed: string | null;
   techniques_used: string | null;
@@ -132,6 +137,37 @@ export interface ClinicalEvolution {
   next_goals: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface TimelineNote {
+  id: string;
+  user_id: string;
+  staff_id: string | null;
+  event_date: string;
+  note: string;
+  created_at: string;
+}
+
+export type TimelineEventType =
+  | "primeira_avaliacao"
+  | "sessao_realizada"
+  | "sessao_remarcada"
+  | "paciente_faltou"
+  | "consulta_cancelada"
+  | "pagamento"
+  | "evolucao"
+  | "plano_iniciado"
+  | "plano_concluido"
+  | "nota_manual";
+
+export interface TimelineEvent {
+  id: string;
+  date: string;
+  type: TimelineEventType;
+  label: string;
+  detail: string | null;
+  /** So preenchido para eventos do tipo nota_manual - id real em patient_timeline_notes, usado para excluir. */
+  noteId: string | null;
 }
 
 export interface ClinicSettings {

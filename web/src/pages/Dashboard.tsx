@@ -25,12 +25,17 @@ interface DashboardData {
     patientsInTreatment: number;
     lowStockCount: number;
     birthdaysThisMonthCount: number;
+    patientsCompletedTreatment: number;
+    patientsWithoutReturnCount: number;
+    patientsNearingDischarge: number;
   };
   nextAppointment: { id: string; patient_name: string; procedure: string; date: string; time: string; status: string } | null;
   todayAppointments: { id: string; patient_name: string; procedure: string; time: string; status: string }[];
   recentSessions: { id: string; patient_name: string; procedure: string; date: string; time: string }[];
   upcomingReturns: { id: string; patient_name: string; procedure: string; date: string; time: string }[];
   birthdays: { id: string; name: string; day: number }[];
+  patientsWithoutReturn: { patientId: string; patientName: string; phone: string; daysSince: number }[];
+  packagesEndingSoon: { planId: string; patientId: string; patientName: string | null; sessionsRemaining: number }[];
   charts: {
     revenueByMonth: ChartMonth[];
     sessionsByMonth: ChartMonth[];
@@ -174,6 +179,15 @@ export function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  async function handleContact(patientId: string) {
+    try {
+      const r = await api.post<{ id: string }>(`/patients/${patientId}/conversations/ensure`, {});
+      navigate(`/conversas?id=${r.id}`);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
   if (error) return <div className="empty-state">{error}</div>;
   if (!data) return <div className="empty-state">Carregando...</div>;
 
@@ -229,6 +243,14 @@ export function Dashboard() {
           { label: "Em tratamento", value: String(data.kpis.patientsInTreatment) },
           { label: "Novos no mês", value: String(data.kpis.newPatientsThisMonth) },
           { label: "Aniversariantes no mês", value: String(data.kpis.birthdaysThisMonthCount) },
+          { label: "Concluíram tratamento", value: String(data.kpis.patientsCompletedTreatment), onClick: () => navigate("/pacientes") },
+          {
+            label: "Sem retorno",
+            value: String(data.kpis.patientsWithoutReturnCount),
+            color: data.kpis.patientsWithoutReturnCount > 0 ? "var(--red)" : undefined,
+            onClick: () => navigate("/lembretes"),
+          },
+          { label: "Próximos da alta", value: String(data.kpis.patientsNearingDischarge), onClick: () => navigate("/pacientes") },
         ]}
       />
 
@@ -304,6 +326,48 @@ export function Dashboard() {
             <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "9px 6px", borderTop: "1px solid var(--border-soft)" }}>
               <span style={{ fontSize: 13.5, fontWeight: 500 }}>{b.name}</span>
               <span style={{ fontSize: 12, color: "var(--text-muted)" }}>dia {String(b.day).padStart(2, "0")}</span>
+            </div>
+          ))}
+        </ListCard>
+
+        <ListCard title="Pacientes sem retorno" onSeeAll={() => navigate("/lembretes")}>
+          {data.patientsWithoutReturn.length === 0 && <div className="empty-state">Todo mundo em dia — ninguém sem retorno.</div>}
+          {data.patientsWithoutReturn.map((p) => (
+            <div key={p.patientId} style={{ padding: "10px 6px", borderTop: "1px solid var(--border-soft)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>⚠ {p.patientName}</span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Última sessão há {p.daysSince} dias</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => navigate(`/pacientes/${p.patientId}`)}>
+                  Ver ficha
+                </button>
+                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => handleContact(p.patientId)}>
+                  Entrar em contato
+                </button>
+              </div>
+            </div>
+          ))}
+        </ListCard>
+
+        <ListCard title="Pacotes próximos do fim" onSeeAll={() => navigate("/pacientes")}>
+          {data.packagesEndingSoon.length === 0 && <div className="empty-state">Nenhum pacote perto do fim.</div>}
+          {data.packagesEndingSoon.map((p) => (
+            <div key={p.planId} style={{ padding: "10px 6px", borderTop: "1px solid var(--border-soft)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.patientName || "Paciente"}</span>
+                <span className={`badge ${p.sessionsRemaining === 1 ? "badge-red" : "badge-yellow"}`}>
+                  {p.sessionsRemaining === 1 ? "Última sessão disponível" : `${p.sessionsRemaining} sessões restantes`}
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => navigate(`/pacientes/${p.patientId}`)}>
+                  Ver ficha
+                </button>
+                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => navigate(`/pacientes/${p.patientId}?newPlan=1`)}>
+                  Registrar novo pacote
+                </button>
+              </div>
             </div>
           ))}
         </ListCard>

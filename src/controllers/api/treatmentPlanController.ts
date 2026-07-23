@@ -20,9 +20,25 @@ export async function listByPatient(req: Request, res: Response): Promise<void> 
   }
 }
 
+/** Usado pelo card de plano em destaque na aba Resumo do prontuario. */
+export async function getCurrentPlan(req: Request, res: Response): Promise<void> {
+  try {
+    const plan = await treatmentPlanRepository.findCurrentByPatient(req.params.id);
+    if (!plan) {
+      res.json({ plan: null });
+      return;
+    }
+    const sessionsCompleted = await treatmentPlanRepository.countCompletedSessions(plan.id);
+    res.json({ plan: { ...plan, sessionsCompleted, sessionsRemaining: Math.max(plan.total_sessions - sessionsCompleted, 0) } });
+  } catch (err) {
+    logger.error(SCOPE, "Erro ao buscar plano atual do paciente", err);
+    res.status(500).json({ error: "Erro ao buscar plano atual do paciente." });
+  }
+}
+
 export async function createTreatmentPlan(req: Request, res: Response): Promise<void> {
   try {
-    const { treatment_type_id, total_sessions, total_price, start_date, goal, status, notes } = req.body;
+    const { treatment_type_id, total_sessions, total_price, start_date, goal, diagnosis, next_reassessment_date, status, notes } = req.body;
     if (!total_sessions) {
       res.status(400).json({ error: "total_sessions e obrigatorio." });
       return;
@@ -34,6 +50,8 @@ export async function createTreatmentPlan(req: Request, res: Response): Promise<
       totalPrice: total_price != null ? Number(total_price) : null,
       startDate: start_date || null,
       goal: goal || null,
+      diagnosis: diagnosis || null,
+      nextReassessmentDate: next_reassessment_date || null,
       status,
       notes: notes || null,
     });
@@ -44,7 +62,7 @@ export async function createTreatmentPlan(req: Request, res: Response): Promise<
   }
 }
 
-const UPDATABLE_FIELDS = ["treatment_type_id", "total_sessions", "total_price", "start_date", "goal", "status", "notes"] as const;
+const UPDATABLE_FIELDS = ["treatment_type_id", "total_sessions", "total_price", "start_date", "goal", "diagnosis", "next_reassessment_date", "status", "notes"] as const;
 
 export async function updateTreatmentPlan(req: Request, res: Response): Promise<void> {
   try {

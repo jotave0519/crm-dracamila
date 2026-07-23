@@ -29,6 +29,9 @@ export async function create(params: {
   evolutionDate?: string;
   mainComplaint?: string | null;
   painScale?: number | null;
+  mobilityScore?: number | null;
+  strengthScore?: number | null;
+  romScore?: number | null;
   treatedRegion?: string | null;
   treatmentPerformed?: string | null;
   techniquesUsed?: string | null;
@@ -46,6 +49,9 @@ export async function create(params: {
       evolution_date: params.evolutionDate ?? new Date().toISOString().slice(0, 10),
       main_complaint: params.mainComplaint ?? null,
       pain_scale: params.painScale ?? null,
+      mobility_score: params.mobilityScore ?? null,
+      strength_score: params.strengthScore ?? null,
+      rom_score: params.romScore ?? null,
       treated_region: params.treatedRegion ?? null,
       treatment_performed: params.treatmentPerformed ?? null,
       techniques_used: params.techniquesUsed ?? null,
@@ -67,6 +73,9 @@ export async function update(
     evolution_date: string;
     main_complaint: string | null;
     pain_scale: number | null;
+    mobility_score: number | null;
+    strength_score: number | null;
+    rom_score: number | null;
     treated_region: string | null;
     treatment_performed: string | null;
     techniques_used: string | null;
