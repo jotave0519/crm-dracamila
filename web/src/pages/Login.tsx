@@ -26,10 +26,10 @@ export function Login() {
       <form onSubmit={handleSubmit} className="card" style={{ width: "100%", maxWidth: 360 }}>
         <div style={{ textAlign: "center", marginBottom: 22 }}>
           <div className="sidebar-brand-mark" style={{ margin: "0 auto 12px" }}>
-            <span>D</span>
+            <span>C</span>
           </div>
           <h1 className="page-title" style={{ fontSize: 22 }}>
-            Dra. Camila
+            Conta Teste
           </h1>
           <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 4 }}>Fisioterapia — CRM</p>
         </div>

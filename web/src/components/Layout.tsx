@@ -53,10 +53,10 @@ export function Layout() {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <div className="sidebar-brand-mark">
-            <span>D</span>
+            <span>C</span>
           </div>
           <div>
-            <div className="sidebar-brand-name">Dra. Camila</div>
+            <div className="sidebar-brand-name">Conta Teste</div>
             <div className="sidebar-brand-sub">Fisioterapia</div>
           </div>
         </div>
