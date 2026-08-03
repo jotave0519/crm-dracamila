@@ -113,6 +113,7 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
       patientsWithoutReturn,
       activePlans,
       patientsCompletedTreatment,
+      revenueToday,
     ] = await Promise.all([
       scheduleRepository.findAllByDate(today),
       scheduleRepository.findNextUpcoming(today, currentTime),
@@ -133,6 +134,7 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
       reminderService.getPatientsWithoutReturn(),
       treatmentPlanRepository.listActiveWithCompletedCount(),
       treatmentPlanRepository.countByStatus("concluido"),
+      financialTransactionRepository.sumRevenuePaidInRange(today, today),
     ]);
 
     const packagesEndingSoon = activePlans
@@ -168,6 +170,7 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
         revenueThisMonth,
         expensesThisMonth,
         profitThisMonth: revenueThisMonth - expensesThisMonth,
+        revenueToday,
         newPatientsThisMonth,
         patientsInTreatment,
         lowStockCount,
@@ -179,7 +182,7 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
       nextAppointment: nextAppointment
         ? { id: nextAppointment.id, patient_name: nextAppointment.patient_name, procedure: nextAppointment.procedure, date: nextAppointment.date, time: nextAppointment.time, status: nextAppointment.status }
         : null,
-      todayAppointments: todayAppointments.map((a) => ({ id: a.id, patient_name: a.patient_name, procedure: a.procedure, time: a.time, status: a.status })),
+      todayAppointments: todayAppointments.map((a) => ({ id: a.id, patient_id: a.user_id, patient_name: a.patient_name, procedure: a.procedure, time: a.time, status: a.status })),
       recentSessions: recentSessions.map((s) => ({ id: s.id, patient_name: s.patient_name, procedure: s.procedure, date: s.date, time: s.time })),
       upcomingReturns: upcomingReturns.map((s) => ({ id: s.id, patient_name: s.patient_name, procedure: s.procedure, date: s.date, time: s.time })),
       birthdays: birthdays

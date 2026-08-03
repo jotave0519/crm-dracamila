@@ -19,6 +19,7 @@ interface DashboardData {
     activePatients: number;
     sessionsThisMonth: number;
     revenueThisMonth: number;
+    revenueToday: number;
     expensesThisMonth: number;
     profitThisMonth: number;
     newPatientsThisMonth: number;
@@ -30,7 +31,7 @@ interface DashboardData {
     patientsNearingDischarge: number;
   };
   nextAppointment: { id: string; patient_name: string; procedure: string; date: string; time: string; status: string } | null;
-  todayAppointments: { id: string; patient_name: string; procedure: string; time: string; status: string }[];
+  todayAppointments: { id: string; patient_id: string; patient_name: string; procedure: string; time: string; status: string }[];
   recentSessions: { id: string; patient_name: string; procedure: string; date: string; time: string }[];
   upcomingReturns: { id: string; patient_name: string; procedure: string; date: string; time: string }[];
   birthdays: { id: string; name: string; day: number }[];
@@ -66,6 +67,18 @@ function formatShortDate(dateStr: string): string {
   return new Date(`${dateStr}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
 }
 
+function contextualSubtitle(data: DashboardData): string {
+  const todayCount = data.todayAppointments.length;
+  if (todayCount === 0) return "Nenhum atendimento hoje.";
+  const remaining = data.todayAppointments.filter((a) => a.status === "Agendado" || a.status === "Confirmado");
+  if (remaining.length === 0) return "Nenhum atendimento restante hoje.";
+  const plural = todayCount > 1 ? "s" : "";
+  if (data.nextAppointment) {
+    return `Você possui ${todayCount} atendimento${plural} hoje — próximo às ${data.nextAppointment.time.slice(0, 5)}.`;
+  }
+  return `Você possui ${todayCount} atendimento${plural} hoje.`;
+}
+
 interface KpiItem {
   label: string;
   value: string;
@@ -75,7 +88,7 @@ interface KpiItem {
 
 function KpiGroup({ title, accent, items }: { title: string; accent: string; items: KpiItem[] }) {
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 22 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
         <span style={{ width: 3, height: 14, borderRadius: 2, background: accent, display: "inline-block" }} />
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>{title}</span>
@@ -104,6 +117,17 @@ function KpiGroup({ title, accent, items }: { title: string; accent: string; ite
         )}
       </div>
     </div>
+  );
+}
+
+function HighlightCard({ label, value, sub, onClick }: { label: string; value: string; sub?: string; onClick?: () => void }) {
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag className="card" onClick={onClick} style={{ textAlign: "left", cursor: onClick ? "pointer" : undefined, padding: "22px 20px" }}>
+      <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 8 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>{sub}</div>}
+    </Tag>
   );
 }
 
@@ -152,6 +176,19 @@ function TreatmentTypesList({ data }: { data: { procedure: string; count: number
   );
 }
 
+function CollapsibleSection({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="card" style={{ marginBottom: 24 }}>
+      <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left" }}>
+        <span style={{ fontSize: 14.5, fontWeight: 600 }}>{title}</span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>{open ? "▲ Ocultar" : "▼ Mostrar indicadores"}</span>
+      </button>
+      {open && <div style={{ marginTop: 22 }}>{children}</div>}
+    </div>
+  );
+}
+
 export function Dashboard() {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -192,31 +229,25 @@ export function Dashboard() {
   if (!data) return <div className="empty-state">Carregando...</div>;
 
   const name = session?.user.email?.split("@")[0] || "";
-  const listGridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20, marginBottom: 20 };
+  const gridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 16, marginBottom: 24 };
+  const listGridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 20, marginBottom: 24 };
   const chartGridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 };
+
+  const attendedToday = data.todayAppointments.filter((a) => a.status === "Concluido").length;
+  const awaitingConfirmation = data.todayAppointments.filter((a) => a.status === "Agendado").length;
 
   return (
     <div>
       <h1 className="page-title">
         {greeting()}, <span style={{ fontStyle: "italic" }}>{name}</span>
       </h1>
-      <p className="page-subtitle">
-        {data.nextAppointment ? (
-          <>
-            Próximo atendimento: <strong style={{ color: "var(--text)" }}>{data.nextAppointment.patient_name}</strong> às{" "}
-            <strong style={{ color: "var(--text)" }}>{data.nextAppointment.time.slice(0, 5)}</strong>
-            {data.nextAppointment.date !== new Date().toLocaleDateString("en-CA") && " (outro dia)"}
-          </>
-        ) : (
-          "Nenhum atendimento futuro agendado."
-        )}
-      </p>
+      <p className="page-subtitle">{contextualSubtitle(data)}</p>
 
       {reminderCount !== null && reminderCount > 0 && (
         <button
           className="card"
           onClick={() => navigate("/lembretes")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 18, textAlign: "left" }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 24, textAlign: "left" }}
         >
           <span style={{ fontSize: 13.5, fontWeight: 500 }}>
             Você tem <strong>{reminderCount}</strong> lembrete{reminderCount > 1 ? "s" : ""} pra hoje
@@ -225,86 +256,43 @@ export function Dashboard() {
         </button>
       )}
 
-      <KpiGroup
-        title="Atendimento"
-        accent="var(--accent)"
-        items={[
-          { label: "Sessões hoje", value: String(data.kpis.sessionsToday) },
-          { label: "Sessões na semana", value: String(data.kpis.sessionsThisWeek) },
-          { label: "Sessões no mês", value: String(data.kpis.sessionsThisMonth) },
-        ]}
-      />
+      <div style={gridStyle}>
+        <HighlightCard label="Pacientes atendidos hoje" value={String(attendedToday)} sub={`de ${data.todayAppointments.length} agendados`} />
+        <HighlightCard
+          label="Próximo atendimento"
+          value={data.nextAppointment ? data.nextAppointment.time.slice(0, 5) : "—"}
+          sub={data.nextAppointment ? data.nextAppointment.patient_name : "Nenhum agendado"}
+        />
+        <HighlightCard label="Aguardando confirmação" value={String(awaitingConfirmation)} sub="sessões de hoje" />
+        <HighlightCard label="Receita do dia" value={formatMoney(data.kpis.revenueToday)} />
+      </div>
 
-      <KpiGroup
-        title="Pacientes"
-        accent="var(--green)"
-        items={[
-          { label: "Ativos", value: String(data.kpis.activePatients) },
-          { label: "Em tratamento", value: String(data.kpis.patientsInTreatment) },
-          { label: "Novos no mês", value: String(data.kpis.newPatientsThisMonth) },
-          { label: "Aniversariantes no mês", value: String(data.kpis.birthdaysThisMonthCount) },
-          { label: "Concluíram tratamento", value: String(data.kpis.patientsCompletedTreatment), onClick: () => navigate("/pacientes") },
-          {
-            label: "Sem retorno",
-            value: String(data.kpis.patientsWithoutReturnCount),
-            color: data.kpis.patientsWithoutReturnCount > 0 ? "var(--red)" : undefined,
-            onClick: () => navigate("/lembretes"),
-          },
-          { label: "Próximos da alta", value: String(data.kpis.patientsNearingDischarge), onClick: () => navigate("/pacientes") },
-        ]}
-      />
+      <ListCard title="Agenda de hoje" onSeeAll={() => navigate("/agenda")}>
+        {data.todayAppointments.length === 0 && <div className="empty-state">Nenhuma sessão para hoje.</div>}
+        {data.todayAppointments.map((a) => (
+          <div key={a.id} style={{ display: "flex", gap: 14, padding: "14px 6px", alignItems: "center", borderTop: "1px solid var(--border-soft)" }}>
+            <div style={{ textAlign: "right", width: 46, flex: "0 0 46px", fontSize: 13, fontWeight: 600 }}>{a.time.slice(0, 5)}</div>
+            <div style={{ width: 3, alignSelf: "stretch", borderRadius: 3, background: "var(--accent)" }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 500 }}>{a.patient_name}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{a.procedure}</div>
+            </div>
+            <span className={`badge ${a.status === "Concluido" ? "badge-green" : a.status === "Faltou" ? "badge-red" : a.status === "Confirmado" ? "badge-yellow" : "badge-blue"}`}>{a.status}</span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="btn-secondary" style={{ fontSize: 11.5, padding: "5px 10px" }} onClick={() => navigate(`/pacientes/${a.patient_id}`)}>
+                Ver ficha
+              </button>
+              <button className="btn-secondary" style={{ fontSize: 11.5, padding: "5px 10px" }} onClick={() => handleContact(a.patient_id)}>
+                Iniciar conversa
+              </button>
+            </div>
+          </div>
+        ))}
+      </ListCard>
 
-      <KpiGroup
-        title="Financeiro do mês"
-        accent="var(--green)"
-        items={[
-          { label: "Receita", value: formatMoney(data.kpis.revenueThisMonth) },
-          { label: "Despesas", value: formatMoney(data.kpis.expensesThisMonth) },
-          { label: "Lucro", value: formatMoney(data.kpis.profitThisMonth), color: data.kpis.profitThisMonth < 0 ? "var(--red)" : "var(--green)" },
-        ]}
-      />
-
-      <KpiGroup
-        title="Estoque"
-        accent="var(--red)"
-        items={[
-          {
-            label: "Produtos com estoque baixo",
-            value: String(data.kpis.lowStockCount),
-            color: data.kpis.lowStockCount > 0 ? "var(--red)" : undefined,
-            onClick: () => navigate("/estoque"),
-          },
-        ]}
-      />
+      <div style={{ height: 24 }} />
 
       <div style={listGridStyle}>
-        <ListCard title="Agenda de hoje" onSeeAll={() => navigate("/agenda")}>
-          {data.todayAppointments.length === 0 && <div className="empty-state">Nenhuma sessão para hoje.</div>}
-          {data.todayAppointments.map((a) => (
-            <div key={a.id} style={{ display: "flex", gap: 13, padding: "9px 6px", alignItems: "center" }}>
-              <div style={{ textAlign: "right", width: 46, flex: "0 0 46px", fontSize: 13, fontWeight: 600 }}>{a.time.slice(0, 5)}</div>
-              <div style={{ width: 3, alignSelf: "stretch", borderRadius: 3, background: "var(--accent)" }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 500 }}>{a.patient_name}</div>
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{a.procedure}</div>
-              </div>
-            </div>
-          ))}
-        </ListCard>
-
-        <ListCard title="Últimos atendimentos" onSeeAll={() => navigate("/agenda")}>
-          {data.recentSessions.length === 0 && <div className="empty-state">Nenhum atendimento realizado ainda.</div>}
-          {data.recentSessions.map((s) => (
-            <div key={s.id} style={{ padding: "11px 4px", borderTop: "1px solid var(--border-soft)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(`${s.date}T12:00:00`).toLocaleDateString("pt-BR")}</span>
-              </div>
-              <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{s.procedure}</div>
-            </div>
-          ))}
-        </ListCard>
-
         <ListCard title="Próximos retornos" onSeeAll={() => navigate("/agenda")}>
           {data.upcomingReturns.length === 0 && <div className="empty-state">Nenhum retorno agendado.</div>}
           {data.upcomingReturns.map((s) => (
@@ -320,30 +308,18 @@ export function Dashboard() {
           ))}
         </ListCard>
 
-        <ListCard title="Aniversariantes do mês" onSeeAll={() => navigate("/pacientes")}>
-          {data.birthdays.length === 0 && <div className="empty-state">Nenhum aniversariante este mês.</div>}
-          {data.birthdays.map((b) => (
-            <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "9px 6px", borderTop: "1px solid var(--border-soft)" }}>
-              <span style={{ fontSize: 13.5, fontWeight: 500 }}>{b.name}</span>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>dia {String(b.day).padStart(2, "0")}</span>
-            </div>
-          ))}
-        </ListCard>
-
         <ListCard title="Pacientes sem retorno" onSeeAll={() => navigate("/lembretes")}>
-          {data.patientsWithoutReturn.length === 0 && <div className="empty-state">Todo mundo em dia — ninguém sem retorno.</div>}
+          {data.patientsWithoutReturn.length === 0 && <div className="empty-state">Todo mundo em dia.</div>}
           {data.patientsWithoutReturn.map((p) => (
-            <div key={p.patientId} style={{ padding: "10px 6px", borderTop: "1px solid var(--border-soft)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <span style={{ fontSize: 13.5, fontWeight: 600 }}>⚠ {p.patientName}</span>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Última sessão há {p.daysSince} dias</div>
+            <div key={p.patientId} style={{ padding: "10px 4px", borderTop: "1px solid var(--border-soft)" }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>⚠ {p.patientName}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Há {p.daysSince} dias</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => navigate(`/pacientes/${p.patientId}`)}>
+                <button className="btn-secondary" style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => navigate(`/pacientes/${p.patientId}`)}>
                   Ver ficha
                 </button>
-                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => handleContact(p.patientId)}>
-                  Entrar em contato
+                <button className="btn-secondary" style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => handleContact(p.patientId)}>
+                  Contato
                 </button>
               </div>
             </div>
@@ -353,40 +329,122 @@ export function Dashboard() {
         <ListCard title="Pacotes próximos do fim" onSeeAll={() => navigate("/pacientes")}>
           {data.packagesEndingSoon.length === 0 && <div className="empty-state">Nenhum pacote perto do fim.</div>}
           {data.packagesEndingSoon.map((p) => (
-            <div key={p.planId} style={{ padding: "10px 6px", borderTop: "1px solid var(--border-soft)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+            <div key={p.planId} style={{ padding: "10px 4px", borderTop: "1px solid var(--border-soft)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 13.5, fontWeight: 600 }}>{p.patientName || "Paciente"}</span>
-                <span className={`badge ${p.sessionsRemaining === 1 ? "badge-red" : "badge-yellow"}`}>
-                  {p.sessionsRemaining === 1 ? "Última sessão disponível" : `${p.sessionsRemaining} sessões restantes`}
-                </span>
+                <span className={`badge ${p.sessionsRemaining === 1 ? "badge-red" : "badge-yellow"}`}>{p.sessionsRemaining === 1 ? "Última sessão" : `${p.sessionsRemaining} restantes`}</span>
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => navigate(`/pacientes/${p.patientId}`)}>
-                  Ver ficha
-                </button>
-                <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 10px" }} onClick={() => navigate(`/pacientes/${p.patientId}?newPlan=1`)}>
-                  Registrar novo pacote
-                </button>
-              </div>
+              <button className="btn-secondary" style={{ fontSize: 11, padding: "4px 8px", marginTop: 8 }} onClick={() => navigate(`/pacientes/${p.patientId}`)}>
+                Ver ficha
+              </button>
             </div>
           ))}
         </ListCard>
       </div>
 
-      <div style={chartGridStyle}>
-        <ChartCard title="Receita mensal">
-          <MonthlyBarChart data={data.charts.revenueByMonth} color="#008300" formatValue={formatMoney} ariaLabel="Receita por mês" />
-        </ChartCard>
-        <ChartCard title="Sessões por mês">
-          <MonthlyBarChart data={data.charts.sessionsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Sessões concluídas por mês" />
-        </ChartCard>
-        <ChartCard title="Novos pacientes por mês">
-          <MonthlyBarChart data={data.charts.newPatientsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Novos pacientes por mês" />
-        </ChartCard>
-        <ChartCard title="Tipos de atendimento mais realizados">
-          <TreatmentTypesList data={data.charts.topTreatmentTypes} />
-        </ChartCard>
+      <div className="card" style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 24 }}>
+        <div>
+          <div className="kpi-label" style={{ marginBottom: 4 }}>
+            Receita do mês
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 600 }}>{formatMoney(data.kpis.revenueThisMonth)}</div>
+        </div>
+        <div>
+          <div className="kpi-label" style={{ marginBottom: 4 }}>
+            Despesas
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 600 }}>{formatMoney(data.kpis.expensesThisMonth)}</div>
+        </div>
+        <div>
+          <div className="kpi-label" style={{ marginBottom: 4 }}>
+            Lucro
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 600, color: data.kpis.profitThisMonth < 0 ? "var(--red)" : "var(--green)" }}>{formatMoney(data.kpis.profitThisMonth)}</div>
+        </div>
       </div>
+
+      {data.kpis.lowStockCount > 0 && (
+        <button
+          className="card"
+          onClick={() => navigate("/estoque")}
+          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", marginBottom: 24, borderLeft: "3px solid var(--red)" }}
+        >
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <span style={{ fontSize: 13 }}>
+            <strong>Estoque</strong> — {data.kpis.lowStockCount} produto{data.kpis.lowStockCount > 1 ? "s" : ""} com estoque baixo
+          </span>
+        </button>
+      )}
+
+      <CollapsibleSection title="Resumo da Clínica">
+        <KpiGroup
+          title="Atendimento"
+          accent="var(--accent)"
+          items={[
+            { label: "Sessões na semana", value: String(data.kpis.sessionsThisWeek) },
+            { label: "Sessões no mês", value: String(data.kpis.sessionsThisMonth) },
+          ]}
+        />
+
+        <KpiGroup
+          title="Pacientes"
+          accent="var(--green)"
+          items={[
+            { label: "Ativos", value: String(data.kpis.activePatients) },
+            { label: "Em tratamento", value: String(data.kpis.patientsInTreatment) },
+            { label: "Novos no mês", value: String(data.kpis.newPatientsThisMonth) },
+            { label: "Aniversariantes no mês", value: String(data.kpis.birthdaysThisMonthCount) },
+            { label: "Concluíram tratamento", value: String(data.kpis.patientsCompletedTreatment), onClick: () => navigate("/pacientes") },
+            {
+              label: "Sem retorno",
+              value: String(data.kpis.patientsWithoutReturnCount),
+              color: data.kpis.patientsWithoutReturnCount > 0 ? "var(--red)" : undefined,
+              onClick: () => navigate("/lembretes"),
+            },
+            { label: "Próximos da alta", value: String(data.kpis.patientsNearingDischarge), onClick: () => navigate("/pacientes") },
+          ]}
+        />
+
+        <div style={listGridStyle}>
+          <ListCard title="Aniversariantes do mês" onSeeAll={() => navigate("/pacientes")}>
+            {data.birthdays.length === 0 && <div className="empty-state">Nenhum aniversariante este mês.</div>}
+            {data.birthdays.map((b) => (
+              <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "9px 6px", borderTop: "1px solid var(--border-soft)" }}>
+                <span style={{ fontSize: 13.5, fontWeight: 500 }}>{b.name}</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>dia {String(b.day).padStart(2, "0")}</span>
+              </div>
+            ))}
+          </ListCard>
+        </div>
+
+        <div style={chartGridStyle}>
+          <ChartCard title="Receita mensal">
+            <MonthlyBarChart data={data.charts.revenueByMonth} color="#008300" formatValue={formatMoney} ariaLabel="Receita por mês" />
+          </ChartCard>
+          <ChartCard title="Sessões por mês">
+            <MonthlyBarChart data={data.charts.sessionsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Sessões concluídas por mês" />
+          </ChartCard>
+          <ChartCard title="Novos pacientes por mês">
+            <MonthlyBarChart data={data.charts.newPatientsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Novos pacientes por mês" />
+          </ChartCard>
+          <ChartCard title="Tipos de atendimento mais realizados">
+            <TreatmentTypesList data={data.charts.topTreatmentTypes} />
+          </ChartCard>
+        </div>
+      </CollapsibleSection>
+
+      <ListCard title="Últimos atendimentos" onSeeAll={() => navigate("/agenda")}>
+        {data.recentSessions.length === 0 && <div className="empty-state">Nenhum atendimento realizado ainda.</div>}
+        {data.recentSessions.map((s) => (
+          <div key={s.id} style={{ padding: "11px 4px", borderTop: "1px solid var(--border-soft)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <span style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(`${s.date}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{s.procedure}</div>
+          </div>
+        ))}
+      </ListCard>
     </div>
   );
 }
