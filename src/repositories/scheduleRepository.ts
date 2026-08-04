@@ -10,7 +10,8 @@ export async function createSchedule(params: {
   treatmentPlanId?: string | null;
   date: string;
   time: string;
-  googleEventId: string;
+  googleEventId: string | null;
+  calendarSyncStatus?: "synced" | "pending";
   notes?: string | null;
   durationMinutes?: number | null;
 }): Promise<Schedule> {
@@ -26,6 +27,7 @@ export async function createSchedule(params: {
       date: params.date,
       time: params.time,
       google_event_id: params.googleEventId,
+      calendar_sync_status: params.calendarSyncStatus ?? "synced",
       notes: params.notes ?? null,
       status: "Agendado",
       duration_minutes: params.durationMinutes ?? null,
@@ -33,6 +35,30 @@ export async function createSchedule(params: {
     .select("*")
     .single();
 
+  if (error) throw error;
+  return data;
+}
+
+/** Usado apos reconciliar uma sessao pendente com o Google Calendar (criacao/atualizacao/cancelamento). */
+export async function markSynced(scheduleId: string, googleEventId: string | null): Promise<Schedule> {
+  const { data, error } = await getSupabaseClient()
+    .from("schedules")
+    .update({ google_event_id: googleEventId, calendar_sync_status: "synced", updated_at: new Date().toISOString() })
+    .eq("id", scheduleId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/** Usado quando uma tentativa de sincronizar com o Google falha de novo - mantem/marca como pendente. */
+export async function markSyncPending(scheduleId: string): Promise<Schedule> {
+  const { data, error } = await getSupabaseClient()
+    .from("schedules")
+    .update({ calendar_sync_status: "pending", updated_at: new Date().toISOString() })
+    .eq("id", scheduleId)
+    .select("*")
+    .single();
   if (error) throw error;
   return data;
 }

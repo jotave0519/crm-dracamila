@@ -39,6 +39,7 @@ export interface Schedule {
   notes: string | null;
   evolution_note: string | null;
   google_event_id: string | null;
+  calendar_sync_status: "synced" | "pending";
   status: ScheduleStatus;
   duration_minutes: number | null;
   created_at: string;

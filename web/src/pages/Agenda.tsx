@@ -13,6 +13,7 @@ interface ScheduleItem {
   date: string;
   time: string;
   status: "Agendado" | "Confirmado" | "Cancelado" | "Concluido" | "Faltou";
+  calendar_sync_status: "synced" | "pending";
 }
 
 interface TreatmentType {
@@ -231,6 +232,16 @@ export function Agenda() {
     }
   }
 
+  async function handleSync(s: ScheduleItem) {
+    setActionsFor(null);
+    try {
+      await api.post(`/schedules/${s.id}/sync`, {});
+      load();
+    } catch (e: any) {
+      setError(e.message);
+    }
+  }
+
   async function handleConfirm(s: ScheduleItem) {
     setActionsFor(null);
     try {
@@ -442,9 +453,10 @@ export function Agenda() {
 
           {dayItems.length > 0 && (
             <div className="card" style={{ padding: 0 }}>
-              {dayItems.map((s) => (
+              {dayItems.map((s, i) => (
                 <div
                   key={s.id}
+                  className="agenda-item-enter"
                   style={{
                     display: "flex",
                     gap: 14,
@@ -452,6 +464,7 @@ export function Agenda() {
                     padding: "14px 18px 14px 14px",
                     borderBottom: "1px solid var(--border-soft)",
                     borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}`,
+                    animationDelay: `${Math.min(i, 10) * 30}ms`,
                   }}
                 >
                   <div style={{ fontSize: 13.5, fontWeight: 700, width: 46, flex: "0 0 46px" }}>{s.time.slice(0, 5)}</div>
@@ -459,6 +472,11 @@ export function Agenda() {
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</div>
                     <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{s.procedure}</div>
                   </div>
+                  {s.calendar_sync_status === "pending" && (
+                    <span className="badge badge-yellow" title="Não sincronizado com o Google Calendar ainda">
+                      ⏳ Pendente
+                    </span>
+                  )}
                   <span className={`badge ${STATUS_BADGE[s.status]}`}>{s.status}</span>
                   <button className="mobile-icon-btn" style={{ width: 32, height: 32, flex: "0 0 32px" }} onClick={() => setActionsFor(s)}>
                     ⋮
@@ -478,6 +496,11 @@ export function Agenda() {
               {actionsFor.procedure} · {new Date(`${actionsFor.date}T12:00:00`).toLocaleDateString("pt-BR")} às {actionsFor.time.slice(0, 5)}
             </div>
             <div style={{ display: "grid", gap: 8 }}>
+              {actionsFor.calendar_sync_status === "pending" && (
+                <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleSync(actionsFor)}>
+                  ⏳ Sincronizar com o Google Calendar
+                </button>
+              )}
               {actionsFor.status === "Agendado" && (
                 <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleConfirm(actionsFor)}>
                   Confirmar presença

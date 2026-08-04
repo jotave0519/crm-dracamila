@@ -121,12 +121,43 @@ a {
   margin: 6px 0 22px;
 }
 
+/* Escala tipografica formal (H1 = .page-title, H2/H3/corpo/legenda abaixo) - uso incremental, sem forcar refatoracao das paginas existentes. */
+.text-h2 {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  margin: 0;
+}
+
+.text-h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.text-caption {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 18px;
   box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(31, 36, 32, 0.08);
+}
+
+button.card {
+  cursor: pointer;
 }
 
 .kpi-grid {
@@ -189,6 +220,13 @@ a {
   color: #fff;
   font-size: 13.5px;
   font-weight: 600;
+  transition: transform 0.1s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:active,
+.btn-secondary:active,
+.btn-danger:active {
+  transform: scale(0.98);
 }
 
 .btn:disabled {
@@ -199,6 +237,7 @@ a {
 .btn-secondary {
   background: var(--border-soft);
   color: var(--text);
+  transition: transform 0.1s ease, background 0.15s ease;
 }
 
 .btn-danger {
@@ -209,6 +248,7 @@ a {
   border-radius: 11px;
   font-size: 13.5px;
   font-weight: 600;
+  transition: transform 0.1s ease, background 0.15s ease;
 }
 
 .input {
@@ -350,6 +390,11 @@ a {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  transition: background 0.15s ease;
+}
+
+.mobile-list-item:hover {
+  background: var(--border-soft);
 }
 
 .mobile-list-row {
@@ -430,6 +475,7 @@ a {
   align-items: flex-end;
   justify-content: center;
   z-index: 50;
+  animation: modalOverlayIn 0.18s ease;
 }
 
 .modal-card {
@@ -440,6 +486,27 @@ a {
   max-width: 560px;
   max-height: 88vh;
   overflow-y: auto;
+  animation: modalCardIn 0.2s ease;
+}
+
+@keyframes modalOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .app-shell {
@@ -502,6 +569,7 @@ a {
   border-radius: 9px;
   font-size: 13px;
   color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .sidebar-item:hover {
@@ -558,6 +626,50 @@ a {
 @media (max-width: 768px) {
   .main {
     padding: 16px;
+  }
+}
+
+/* Centraliza o conteudo em monitores widescreen sem afetar o scroll (que continua na borda real da tela). */
+.page-transition {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  animation: pageIn 0.2s ease;
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.agenda-item-enter {
+  animation: agendaItemIn 0.25s ease both;
+}
+
+@keyframes agendaItemIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }
 

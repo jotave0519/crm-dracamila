@@ -103,6 +103,21 @@ export async function rescheduleSchedule(req: Request, res: Response): Promise<v
   }
 }
 
+/** Reconcilia uma sessao "pendente de sincronizacao" com o Google Calendar (botao "Sincronizar agora"). */
+export async function syncSchedule(req: Request, res: Response): Promise<void> {
+  try {
+    const schedule = await schedulingService.syncAppointment(req.params.id);
+    res.json(schedule);
+  } catch (err) {
+    logger.error(SCOPE, "Erro ao sincronizar agendamento com o Google Calendar", err);
+    if (err instanceof AppError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.status(500).json({ error: "Erro ao sincronizar agendamento." });
+  }
+}
+
 /** Confirmacao de presenca antes da sessao acontecer. */
 export async function confirmSchedule(req: Request, res: Response): Promise<void> {
   try {

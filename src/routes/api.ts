@@ -14,7 +14,7 @@ import { deleteAttachment, listAttachments, uploadAttachment, uploadMiddleware }
 import { createPatient, deletePatient, getPatient, getPatientConversations, getPatientHistory, listPatients, updatePatient } from "../controllers/api/patientController";
 import { getReminders } from "../controllers/api/reminderController";
 import { getReport } from "../controllers/api/reportController";
-import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, rescheduleSchedule, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
+import { cancelSchedule, confirmSchedule, createSchedule, listSchedules, rescheduleSchedule, syncSchedule, updateOutcome, updateScheduleTreatmentPlan } from "../controllers/api/scheduleController";
 import { getSettings, updateSettings } from "../controllers/api/settingsController";
 import { createTreatmentPlan, deleteTreatmentPlan, getCurrentPlan, listByPatient as listTreatmentPlansByPatient, updateTreatmentPlan } from "../controllers/api/treatmentPlanController";
 import { createTreatmentType, deleteTreatmentType, listTreatmentTypes, updateTreatmentType } from "../controllers/api/treatmentTypeController";
@@ -59,6 +59,7 @@ apiRouter.patch("/schedules/:id/outcome", updateOutcome);
 apiRouter.patch("/schedules/:id/confirm", confirmSchedule);
 apiRouter.patch("/schedules/:id/reschedule", rescheduleSchedule);
 apiRouter.patch("/schedules/:id/treatment-plan", updateScheduleTreatmentPlan);
+apiRouter.post("/schedules/:id/sync", syncSchedule);
 
 apiRouter.get("/patients/:id/evolutions", listEvolutions);
 apiRouter.post("/patients/:id/evolutions", createEvolution);

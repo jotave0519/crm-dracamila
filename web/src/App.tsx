@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
+import { ClinicProvider } from "./context/ClinicContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { Agenda } from "./pages/Agenda";
 import { AssistenteIA } from "./pages/AssistenteIA";
@@ -24,6 +25,7 @@ export function App() {
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
+          <ClinicProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
@@ -45,6 +47,7 @@ export function App() {
               </Route>
             </Route>
           </Routes>
+          </ClinicProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

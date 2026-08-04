@@ -1,7 +1,8 @@
 import { CSSProperties, ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MonthlyBarChart } from "../components/MonthlyBarChart";
-import { useAuth } from "../context/AuthContext";
+import { useClinic } from "../context/ClinicContext";
+import { useCountUp } from "../hooks/useCountUp";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
@@ -190,7 +191,7 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 }
 
 export function Dashboard() {
-  const { session } = useAuth();
+  const { professionalName } = useClinic();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -225,21 +226,24 @@ export function Dashboard() {
     }
   }
 
+  const attendedTodayRaw = data ? data.todayAppointments.filter((a) => a.status === "Concluido").length : 0;
+  const awaitingConfirmationRaw = data ? data.todayAppointments.filter((a) => a.status === "Agendado").length : 0;
+  const revenueTodayRaw = data ? Math.round(data.kpis.revenueToday) : 0;
+  const attendedToday = useCountUp(attendedTodayRaw);
+  const awaitingConfirmation = useCountUp(awaitingConfirmationRaw);
+  const revenueToday = useCountUp(revenueTodayRaw);
+
   if (error) return <div className="empty-state">{error}</div>;
   if (!data) return <div className="empty-state">Carregando...</div>;
 
-  const name = session?.user.email?.split("@")[0] || "";
   const gridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 16, marginBottom: 24 };
   const listGridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 20, marginBottom: 24 };
   const chartGridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 };
 
-  const attendedToday = data.todayAppointments.filter((a) => a.status === "Concluido").length;
-  const awaitingConfirmation = data.todayAppointments.filter((a) => a.status === "Agendado").length;
-
   return (
     <div>
       <h1 className="page-title">
-        {greeting()}, <span style={{ fontStyle: "italic" }}>{name}</span>
+        {greeting()}, <span style={{ fontStyle: "italic" }}>{professionalName}</span>
       </h1>
       <p className="page-subtitle">{contextualSubtitle(data)}</p>
 
@@ -264,7 +268,7 @@ export function Dashboard() {
           sub={data.nextAppointment ? data.nextAppointment.patient_name : "Nenhum agendado"}
         />
         <HighlightCard label="Aguardando confirmação" value={String(awaitingConfirmation)} sub="sessões de hoje" />
-        <HighlightCard label="Receita do dia" value={formatMoney(data.kpis.revenueToday)} />
+        <HighlightCard label="Receita do dia" value={formatMoney(revenueToday)} />
       </div>
 
       <ListCard title="Agenda de hoje" onSeeAll={() => navigate("/agenda")}>

@@ -1,5 +1,6 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useClinic } from "../context/ClinicContext";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { MobileHeader } from "./MobileHeader";
 import { MobileTabBar } from "./MobileTabBar";
@@ -31,7 +32,9 @@ const NAV_GROUPS = [
 
 export function Layout() {
   const { session, signOut } = useAuth();
+  const { professionalName } = useClinic();
   const navigate = useNavigate();
+  const location = useLocation();
   const isMobile = useIsMobile();
 
   const email = session?.user.email || "";
@@ -42,7 +45,9 @@ export function Layout() {
       <div style={{ display: "flex", flexDirection: "column", height: "100dvh", width: "100%" }}>
         <MobileHeader />
         <main className="main">
-          <Outlet />
+          <div key={location.pathname} className="page-transition">
+            <Outlet />
+          </div>
         </main>
         <MobileTabBar />
       </div>
@@ -54,10 +59,10 @@ export function Layout() {
       <aside className="sidebar">
         <div className="sidebar-brand">
           <div className="sidebar-brand-mark">
-            <span>C</span>
+            <span>{professionalName.charAt(0).toUpperCase() || "C"}</span>
           </div>
           <div>
-            <div className="sidebar-brand-name">Conta Teste</div>
+            <div className="sidebar-brand-name">{professionalName}</div>
             <div className="sidebar-brand-sub">Fisioterapia</div>
           </div>
         </div>
@@ -86,7 +91,9 @@ export function Layout() {
 
       <div className="main-column">
         <main className="main">
-          <Outlet />
+          <div key={location.pathname} className="page-transition">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
