@@ -167,6 +167,61 @@ button.card {
   margin-bottom: 20px;
 }
 
+/* Grade "4 colunas em telas grandes; 3 em medias; 2 em pequenas; 1 no mobile" (spec do usuario). */
+.grid-responsive-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1439px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1023px) {
+  .grid-responsive-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-responsive-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.grid-responsive-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1023px) {
+  .grid-responsive-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid-responsive-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.grid-responsive-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 768px) {
+  .grid-responsive-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .kpi-label {
   font-size: 12.5px;
   color: var(--text-muted);
@@ -489,6 +544,16 @@ button.card {
   animation: modalCardIn 0.2s ease;
 }
 
+@media (max-width: 768px) {
+  .modal-card--fullscreen {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+  }
+}
+
 @keyframes modalOverlayIn {
   from {
     opacity: 0;
@@ -522,6 +587,45 @@ button.card {
   display: flex;
   flex-direction: column;
   padding: 18px 12px;
+}
+
+.sidebar-tablet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 60;
+  transform: translateX(-100%);
+  transition: transform 0.2s ease;
+  box-shadow: 4px 0 16px rgba(31, 36, 32, 0.12);
+}
+
+.sidebar-tablet.sidebar-open {
+  transform: translateX(0);
+}
+
+.sidebar-toggle {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 61;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay);
+  z-index: 59;
+  animation: modalOverlayIn 0.18s ease;
 }
 
 .sidebar-brand {
@@ -629,6 +733,13 @@ button.card {
   }
 }
 
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Espaco extra no topo pra nao colidir com o botao de abrir a sidebar (.sidebar-toggle). */
+  .main {
+    padding-top: 64px;
+  }
+}
+
 /* Centraliza o conteudo em monitores widescreen sem afetar o scroll (que continua na borda real da tela). */
 .page-transition {
   max-width: 1400px;
@@ -670,6 +781,36 @@ button.card {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+.month-cell {
+  min-height: 62px;
+}
+
+.agenda-day-row {
+  padding: 14px 18px 14px 14px;
+}
+
+.agenda-item-action-btn {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .month-cell {
+    min-height: 78px;
+  }
+
+  .agenda-day-row {
+    padding: 18px 20px 18px 16px;
+  }
+
+  .agenda-item-action-btn {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
   }
 }
 

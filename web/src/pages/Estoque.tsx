@@ -481,7 +481,7 @@ export function Estoque() {
       {movementFor && (
         <div className="modal-overlay" onClick={() => setMovementFor(null)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Movimentar estoque</div>
+            <div className="text-h3" style={{ marginBottom: 4 }}>Movimentar estoque</div>
             <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 14 }}>
               {movementFor.name} — {movementFor.quantity} {movementFor.unit || ""} em estoque
             </div>
@@ -531,8 +531,8 @@ export function Estoque() {
 
       {historyFor && (
         <div className="modal-overlay" onClick={() => setHistoryFor(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Histórico — {historyFor.name}</div>
+          <div className={`modal-card${isMobile ? " modal-card--fullscreen" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: isMobile ? undefined : 520 }}>
+            <div className="text-h3" style={{ marginBottom: 14 }}>Histórico — {historyFor.name}</div>
             {historyItems === null && <div className="empty-state">Carregando...</div>}
             {historyItems && historyItems.length === 0 && <div className="empty-state">Nenhuma movimentação registrada ainda.</div>}
             {historyItems && historyItems.length > 0 && (

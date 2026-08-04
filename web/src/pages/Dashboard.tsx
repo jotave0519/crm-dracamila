@@ -1,9 +1,8 @@
-import { CSSProperties, ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MonthlyBarChart } from "../components/MonthlyBarChart";
 import { useClinic } from "../context/ClinicContext";
 import { useCountUp } from "../hooks/useCountUp";
-import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -193,7 +192,6 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 export function Dashboard() {
   const { professionalName } = useClinic();
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const [data, setData] = useState<DashboardData | null>(null);
   const [reminderCount, setReminderCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -236,10 +234,6 @@ export function Dashboard() {
   if (error) return <div className="empty-state">{error}</div>;
   if (!data) return <div className="empty-state">Carregando...</div>;
 
-  const gridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(4, 1fr)", gap: 16, marginBottom: 24 };
-  const listGridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 20, marginBottom: 24 };
-  const chartGridStyle: CSSProperties = { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 };
-
   return (
     <div>
       <h1 className="page-title">
@@ -260,7 +254,7 @@ export function Dashboard() {
         </button>
       )}
 
-      <div style={gridStyle}>
+      <div className="grid-responsive-4" style={{ gap: 16, marginBottom: 24 }}>
         <HighlightCard label="Pacientes atendidos hoje" value={String(attendedToday)} sub={`de ${data.todayAppointments.length} agendados`} />
         <HighlightCard
           label="Próximo atendimento"
@@ -296,7 +290,7 @@ export function Dashboard() {
 
       <div style={{ height: 24 }} />
 
-      <div style={listGridStyle}>
+      <div className="grid-responsive-3" style={{ gap: 20, marginBottom: 24 }}>
         <ListCard title="Próximos retornos" onSeeAll={() => navigate("/agenda")}>
           {data.upcomingReturns.length === 0 && <div className="empty-state">Nenhum retorno agendado.</div>}
           {data.upcomingReturns.map((s) => (
@@ -409,7 +403,7 @@ export function Dashboard() {
           ]}
         />
 
-        <div style={listGridStyle}>
+        <div className="grid-responsive-3" style={{ gap: 20, marginBottom: 24 }}>
           <ListCard title="Aniversariantes do mês" onSeeAll={() => navigate("/pacientes")}>
             {data.birthdays.length === 0 && <div className="empty-state">Nenhum aniversariante este mês.</div>}
             {data.birthdays.map((b) => (
@@ -421,7 +415,7 @@ export function Dashboard() {
           </ListCard>
         </div>
 
-        <div style={chartGridStyle}>
+        <div className="grid-responsive-2" style={{ gap: 20 }}>
           <ChartCard title="Receita mensal">
             <MonthlyBarChart data={data.charts.revenueByMonth} color="#008300" formatValue={formatMoney} ariaLabel="Receita por mês" />
           </ChartCard>

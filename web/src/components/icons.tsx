@@ -25,3 +25,4 @@ export const SunIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M
 export const MoonIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />;
 export const TrashIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M4 7h16M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3m3 0-1 13a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 7h14Z" />;
 export const PencilIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />;
+export const MenuIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M4 6h16M4 12h16M4 18h16" />;

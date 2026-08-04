@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
 interface ReportData {
@@ -27,7 +26,6 @@ function firstDayOfMonth(): string {
 const STATUS_LABEL: Record<string, string> = { Agendado: "Agendadas", Confirmado: "Confirmadas", Concluido: "Realizadas", Faltou: "Faltas", Cancelado: "Canceladas" };
 
 export function Relatorios() {
-  const isMobile = useIsMobile();
   const [from, setFrom] = useState(firstDayOfMonth());
   const [to, setTo] = useState(toIso(new Date()));
   const [data, setData] = useState<ReportData | null>(null);
@@ -79,9 +77,9 @@ export function Relatorios() {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 20 }}>
+          <div className="grid-responsive-2" style={{ gap: 20 }}>
             <div className="card">
-              <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 14 }}>Sessões por status</div>
+              <div className="text-h3" style={{ marginBottom: 14 }}>Sessões por status</div>
               {Object.keys(data.sessionsByStatus).length === 0 && <div className="empty-state">Nenhuma sessão no período.</div>}
               {Object.entries(data.sessionsByStatus).map(([status, count]) => (
                 <div key={status} style={{ display: "flex", justifyContent: "space-between", padding: "9px 4px", borderTop: "1px solid var(--border-soft)" }}>
@@ -92,26 +90,28 @@ export function Relatorios() {
             </div>
 
             <div className="card" style={{ padding: 0 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 600, padding: "18px 18px 4px" }}>Procedimentos mais realizados</div>
+              <div className="text-h3" style={{ padding: "18px 18px 4px" }}>Procedimentos mais realizados</div>
               {data.topProcedures.length === 0 ? (
                 <div className="empty-state">Nenhum atendimento concluído no período.</div>
               ) : (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Procedimento</th>
-                      <th>Sessões</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.topProcedures.map((p) => (
-                      <tr key={p.procedure}>
-                        <td>{p.procedure}</td>
-                        <td>{p.count}</td>
+                <div style={{ overflowX: "auto" }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Procedimento</th>
+                        <th>Sessões</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {data.topProcedures.map((p) => (
+                        <tr key={p.procedure}>
+                          <td>{p.procedure}</td>
+                          <td>{p.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>

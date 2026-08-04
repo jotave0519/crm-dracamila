@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useClinic } from "../context/ClinicContext";
+import { MenuIcon } from "./icons";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useIsTablet } from "../hooks/useIsTablet";
 import { MobileHeader } from "./MobileHeader";
 import { MobileTabBar } from "./MobileTabBar";
 
@@ -36,9 +39,15 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+  const isTablet = useIsTablet();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const email = session?.user.email || "";
   const initials = email.slice(0, 2).toUpperCase();
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   if (isMobile) {
     return (
@@ -56,7 +65,13 @@ export function Layout() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      {isTablet && (
+        <button className="sidebar-toggle" onClick={() => setSidebarOpen((v) => !v)} aria-label="Abrir menu">
+          <MenuIcon />
+        </button>
+      )}
+      {isTablet && sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+      <aside className={`sidebar${isTablet ? " sidebar-tablet" : ""}${isTablet && sidebarOpen ? " sidebar-open" : ""}`}>
         <div className="sidebar-brand">
           <div className="sidebar-brand-mark">
             <span>{professionalName.charAt(0).toUpperCase() || "C"}</span>

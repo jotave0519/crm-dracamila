@@ -114,15 +114,13 @@ export function Pacientes() {
       )}
 
       {items !== null && items.length > 0 && (
-      <div className="card" style={{ padding: 0 }}>
+      <div className="grid-responsive-2" style={{ gap: 10 }}>
         {items?.map((p) => (
-          <div key={p.id} className="mobile-list-item" style={{ cursor: "pointer" }} onClick={() => navigate(`/pacientes/${p.id}`)}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 13.5 }}>{p.name || "Contato sem nome"}</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                {p.phone}
-                {p.email ? ` · ${p.email}` : ""}
-              </div>
+          <div key={p.id} className="card" style={{ cursor: "pointer", padding: "14px 16px" }} onClick={() => navigate(`/pacientes/${p.id}`)}>
+            <div style={{ fontWeight: 600, fontSize: 13.5 }}>{p.name || "Contato sem nome"}</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {p.phone}
+              {p.email ? ` · ${p.email}` : ""}
             </div>
           </div>
         ))}

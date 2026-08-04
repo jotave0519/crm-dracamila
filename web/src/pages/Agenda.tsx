@@ -120,11 +120,10 @@ function MonthGrid({ monthDate, schedules, onSelectDay }: { monthDate: Date; sch
           return (
             <button
               key={iso}
-              className="card"
+              className="card month-cell"
               onClick={() => onSelectDay(d)}
               style={{
                 padding: "10px 6px",
-                minHeight: 62,
                 textAlign: "left",
                 opacity: inMonth ? 1 : 0.4,
                 border: isToday ? "1.5px solid var(--accent)" : undefined,
@@ -456,12 +455,11 @@ export function Agenda() {
               {dayItems.map((s, i) => (
                 <div
                   key={s.id}
-                  className="agenda-item-enter"
+                  className="agenda-item-enter agenda-day-row"
                   style={{
                     display: "flex",
                     gap: 14,
                     alignItems: "center",
-                    padding: "14px 18px 14px 14px",
                     borderBottom: "1px solid var(--border-soft)",
                     borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}`,
                     animationDelay: `${Math.min(i, 10) * 30}ms`,
@@ -478,7 +476,7 @@ export function Agenda() {
                     </span>
                   )}
                   <span className={`badge ${STATUS_BADGE[s.status]}`}>{s.status}</span>
-                  <button className="mobile-icon-btn" style={{ width: 32, height: 32, flex: "0 0 32px" }} onClick={() => setActionsFor(s)}>
+                  <button className="mobile-icon-btn agenda-item-action-btn" onClick={() => setActionsFor(s)}>
                     ⋮
                   </button>
                 </div>
@@ -491,7 +489,7 @@ export function Agenda() {
       {actionsFor && (
         <div className="modal-overlay" onClick={() => setActionsFor(null)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{actionsFor.patient_name}</div>
+            <div className="text-h3" style={{ marginBottom: 4 }}>{actionsFor.patient_name}</div>
             <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16 }}>
               {actionsFor.procedure} · {new Date(`${actionsFor.date}T12:00:00`).toLocaleDateString("pt-BR")} às {actionsFor.time.slice(0, 5)}
             </div>
@@ -535,7 +533,7 @@ export function Agenda() {
       {rescheduleFor && (
         <div className="modal-overlay" onClick={() => setRescheduleFor(null)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Editar sessão</div>
+            <div className="text-h3" style={{ marginBottom: 4 }}>Editar sessão</div>
             <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12 }}>
               {rescheduleFor.patient_name} — {rescheduleFor.procedure}
             </div>

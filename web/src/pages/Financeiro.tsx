@@ -451,7 +451,7 @@ export function Financeiro() {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 4 }}>Receita x despesa (últimos 6 meses)</div>
+        <div className="text-h3" style={{ marginBottom: 4 }}>Receita x despesa (últimos 6 meses)</div>
         {chart ? <FinancialChart months={chart} /> : <div className="empty-state">Carregando...</div>}
       </div>
 
@@ -621,8 +621,8 @@ export function Financeiro() {
 
       {showCategoryManager && (
         <div className="modal-overlay" onClick={() => setShowCategoryManager(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 14 }}>Categorias</div>
+          <div className={`modal-card${isMobile ? " modal-card--fullscreen" : ""}`} onClick={(e) => e.stopPropagation()} style={{ maxWidth: isMobile ? undefined : 460 }}>
+            <div className="text-h3" style={{ marginBottom: 14 }}>Categorias</div>
 
             <form onSubmit={handleCreateCategory} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <select className="input" style={{ maxWidth: 120 }} value={newCategoryType} onChange={(e) => setNewCategoryType(e.target.value as TransactionType)}>
