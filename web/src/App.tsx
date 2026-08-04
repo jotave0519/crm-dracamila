@@ -4,6 +4,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { ClinicProvider } from "./context/ClinicContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { ToastProvider } from "./context/ToastContext";
 import { Agenda } from "./pages/Agenda";
 import { AssistenteIA } from "./pages/AssistenteIA";
 import { Configuracoes } from "./pages/Configuracoes";
@@ -26,6 +27,7 @@ export function App() {
       <BrowserRouter>
         <AuthProvider>
           <ClinicProvider>
+          <ToastProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route element={<ProtectedRoute />}>
@@ -47,6 +49,7 @@ export function App() {
               </Route>
             </Route>
           </Routes>
+          </ToastProvider>
           </ClinicProvider>
         </AuthProvider>
       </BrowserRouter>

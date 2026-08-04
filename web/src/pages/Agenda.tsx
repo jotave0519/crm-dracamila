@@ -1,9 +1,12 @@
+import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
+import { CalendarIcon, CheckIcon, PencilIcon, TrashIcon, XIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
+import { useToast } from "../context/ToastContext";
 
 interface ScheduleItem {
   id: string;
@@ -13,7 +16,6 @@ interface ScheduleItem {
   date: string;
   time: string;
   status: "Agendado" | "Confirmado" | "Cancelado" | "Concluido" | "Faltou";
-  calendar_sync_status: "synced" | "pending";
 }
 
 interface TreatmentType {
@@ -39,6 +41,30 @@ type ViewMode = "dia" | "semana" | "mes";
 
 function toIso(d: Date): string {
   return d.toLocaleDateString("en-CA");
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function shortMonth(d: Date): string {
+  return capitalize(d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""));
+}
+
+/** Rotulo do botao central da barra de navegacao - "Hoje" so quando a data selecionada e realmente hoje. */
+function navLabel(mode: ViewMode, date: Date): string {
+  if (toIso(date) === toIso(new Date())) return "Hoje";
+  if (mode === "dia") return `${String(date.getDate()).padStart(2, "0")} ${shortMonth(date)}`;
+  if (mode === "semana") {
+    const week = weekDates(date);
+    const start = week[0];
+    const end = week[6];
+    const startDay = String(start.getDate()).padStart(2, "0");
+    const endDay = String(end.getDate()).padStart(2, "0");
+    if (start.getMonth() === end.getMonth()) return `Semana ${startDay}–${endDay} ${shortMonth(end)}`;
+    return `Semana ${startDay} ${shortMonth(start)} – ${endDay} ${shortMonth(end)}`;
+  }
+  return `${capitalize(date.toLocaleDateString("pt-BR", { month: "long" }))} ${date.getFullYear()}`;
 }
 
 function weekDates(center: Date): Date[] {
@@ -85,10 +111,18 @@ function shiftDate(date: Date, mode: ViewMode, dir: 1 | -1): Date {
   return next;
 }
 
-const STATUS_BADGE: Record<string, string> = { Agendado: "badge-blue", Confirmado: "badge-yellow", Concluido: "badge-green", Faltou: "badge-red", Cancelado: "badge-neutral" };
+const STATUS_LABEL: Record<string, string> = { Agendado: "Agendado", Confirmado: "Confirmado", Concluido: "Concluído", Faltou: "Faltou", Cancelado: "Cancelado" };
+const STATUS_COLOR: Record<string, string> = { Agendado: "blue", Confirmado: "yellow", Concluido: "green", Faltou: "red", Cancelado: "neutral" };
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const EMPTY_FORM = { patientId: "", newPatientName: "", newPatientPhone: "", procedure: "", treatmentPlanId: "", time: "09:00" };
+
+const fadeSlide = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+  transition: { duration: 0.22, ease: "easeOut" as const },
+};
 
 function MonthGrid({ monthDate, schedules, onSelectDay }: { monthDate: Date; schedules: ScheduleItem[]; onSelectDay: (d: Date) => void }) {
   const month = monthDate.getMonth();
@@ -145,6 +179,7 @@ function MonthGrid({ monthDate, schedules, onSelectDay }: { monthDate: Date; sch
 
 export function Agenda() {
   const isMobile = useIsMobile();
+  const { showToast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>("semana");
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [schedules, setSchedules] = useState<ScheduleItem[] | null>(null);
@@ -191,6 +226,9 @@ export function Agenda() {
 
   const dayItems = (schedules || []).filter((s) => s.date === toIso(selectedDate)).sort((a, b) => a.time.localeCompare(b.time));
 
+  const weekCountByDate: Record<string, number> = {};
+  for (const s of schedules || []) weekCountByDate[s.date] = (weekCountByDate[s.date] || 0) + 1;
+
   function goPrev() {
     setSelectedDate(shiftDate(selectedDate, viewMode, -1));
   }
@@ -216,6 +254,7 @@ export function Agenda() {
       await api.delete(`/schedules/${cancelFor.id}`);
       setCancelFor(null);
       load();
+      showToast("Sessão cancelada");
     } catch (e: any) {
       setError(e.message);
     }
@@ -226,16 +265,7 @@ export function Agenda() {
     try {
       await api.patch(`/schedules/${s.id}/outcome`, { outcome });
       load();
-    } catch (e: any) {
-      setError(e.message);
-    }
-  }
-
-  async function handleSync(s: ScheduleItem) {
-    setActionsFor(null);
-    try {
-      await api.post(`/schedules/${s.id}/sync`, {});
-      load();
+      if (outcome === "completed") showToast("Sessão concluída");
     } catch (e: any) {
       setError(e.message);
     }
@@ -246,6 +276,7 @@ export function Agenda() {
     try {
       await api.patch(`/schedules/${s.id}/confirm`, {});
       load();
+      showToast("Presença confirmada");
     } catch (e: any) {
       setError(e.message);
     }
@@ -297,6 +328,7 @@ export function Agenda() {
       setForm(EMPTY_FORM);
       load();
       api.get<{ items: PatientOption[] }>("/patients?limit=200").then((r) => setPatients(r.items));
+      showToast("✓ Sessão criada");
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -375,7 +407,13 @@ export function Agenda() {
 
   const subtitle = viewMode === "dia" ? "Sessões do dia" : viewMode === "semana" ? "Sessões da semana" : "Visão mensal";
 
+  const canAct = (s: ScheduleItem) => s.status === "Agendado" || s.status === "Confirmado";
+
+  const contentKey =
+    viewMode === "mes" ? `mes-${selectedDate.getFullYear()}-${selectedDate.getMonth()}` : viewMode === "semana" ? `semana-${toIso(days[0])}` : `dia-${toIso(selectedDate)}`;
+
   return (
+    <MotionConfig reducedMotion="user">
     <div>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, marginBottom: 18, flexWrap: "wrap" }}>
         <div>
@@ -401,8 +439,8 @@ export function Agenda() {
           <button className="btn-secondary" style={{ padding: "6px 12px" }} onClick={goPrev}>
             ←
           </button>
-          <button className="btn-secondary" style={{ padding: "6px 12px" }} onClick={goToday}>
-            Hoje
+          <button className="btn-secondary" style={{ padding: "6px 14px" }} onClick={goToday}>
+            {navLabel(viewMode, selectedDate)}
           </button>
           <button className="btn-secondary" style={{ padding: "6px 12px" }} onClick={goNext}>
             →
@@ -421,143 +459,224 @@ export function Agenda() {
       </FormSheet>
 
       {viewMode === "semana" && (
-        <div className="day-strip" style={{ marginBottom: 20 }}>
-          {days.map((d) => {
-            const iso = toIso(d);
-            const isSelected = iso === toIso(selectedDate);
-            const label = d.toLocaleDateString("pt-BR", { weekday: "short" });
-            return (
-              <button key={iso} className={`chip${isSelected ? " active" : ""}`} onClick={() => setSelectedDate(d)} style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 54 }}>
-                <span style={{ textTransform: "capitalize" }}>{label}</span>
-                <span style={{ fontWeight: 700 }}>{d.getDate()}</span>
-              </button>
-            );
-          })}
-        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={toIso(days[0])}
+            className="day-strip"
+            style={{ marginBottom: 20 }}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            {days.map((d) => {
+              const iso = toIso(d);
+              const isSelected = iso === toIso(selectedDate);
+              const isToday = iso === toIso(new Date());
+              const hasSessions = (weekCountByDate[iso] || 0) > 0;
+              const label = d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+              return (
+                <button key={iso} className={`week-day-cell${isSelected ? " active" : ""}`} onClick={() => setSelectedDate(d)}>
+                  <span className="week-day-label">{label}</span>
+                  <span className="week-day-number">{d.getDate()}</span>
+                  <span className="week-day-indicators">
+                    {isToday && <span className="week-day-dot week-day-dot-today" />}
+                    {hasSessions && <span className="week-day-dot week-day-dot-sessions" />}
+                  </span>
+                </button>
+              );
+            })}
+          </motion.div>
+        </AnimatePresence>
       )}
 
-      {viewMode === "mes" ? (
-        <MonthGrid monthDate={selectedDate} schedules={schedules || []} onSelectDay={selectDayFromMonth} />
-      ) : (
-        <>
-          {viewMode === "dia" && (
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14, textTransform: "capitalize" }}>
-              {selectedDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-            </div>
-          )}
-
-          {dayItems.length === 0 && (
-            <EmptyState title="Nenhuma sessão nesse dia" description="A agenda deste dia está livre." actionLabel="+ Nova sessão" onAction={() => setShowForm(true)} />
-          )}
-
-          {dayItems.length > 0 && (
-            <div className="card" style={{ padding: 0 }}>
-              {dayItems.map((s, i) => (
-                <div
-                  key={s.id}
-                  className="agenda-item-enter agenda-day-row"
-                  style={{
-                    display: "flex",
-                    gap: 14,
-                    alignItems: "center",
-                    borderBottom: "1px solid var(--border-soft)",
-                    borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}`,
-                    animationDelay: `${Math.min(i, 10) * 30}ms`,
-                  }}
-                >
-                  <div style={{ fontSize: 13.5, fontWeight: 700, width: 46, flex: "0 0 46px" }}>{s.time.slice(0, 5)}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</div>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{s.procedure}</div>
-                  </div>
-                  {s.calendar_sync_status === "pending" && (
-                    <span className="badge badge-yellow" title="Não sincronizado com o Google Calendar ainda">
-                      ⏳ Pendente
-                    </span>
-                  )}
-                  <span className={`badge ${STATUS_BADGE[s.status]}`}>{s.status}</span>
-                  <button className="mobile-icon-btn agenda-item-action-btn" onClick={() => setActionsFor(s)}>
-                    ⋮
-                  </button>
+      <AnimatePresence mode="wait">
+        <motion.div key={contentKey} initial={fadeSlide.initial} animate={fadeSlide.animate} exit={fadeSlide.exit} transition={fadeSlide.transition}>
+          {viewMode === "mes" ? (
+            <MonthGrid monthDate={selectedDate} schedules={schedules || []} onSelectDay={selectDayFromMonth} />
+          ) : (
+            <>
+              {viewMode === "dia" && (
+                <div className="text-h3" style={{ marginBottom: 14, textTransform: "capitalize" }}>
+                  {selectedDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
                 </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+              )}
 
-      {actionsFor && (
-        <div className="modal-overlay" onClick={() => setActionsFor(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="text-h3" style={{ marginBottom: 4 }}>{actionsFor.patient_name}</div>
-            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16 }}>
-              {actionsFor.procedure} · {new Date(`${actionsFor.date}T12:00:00`).toLocaleDateString("pt-BR")} às {actionsFor.time.slice(0, 5)}
-            </div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {actionsFor.calendar_sync_status === "pending" && (
-                <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleSync(actionsFor)}>
-                  ⏳ Sincronizar com o Google Calendar
-                </button>
+              {dayItems.length === 0 && (
+                <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: "easeOut" }}>
+                  <EmptyState icon={<CalendarIcon width={20} height={20} />} title="Agenda livre" description="Nenhuma sessão agendada para este dia." />
+                </motion.div>
               )}
-              {actionsFor.status === "Agendado" && (
-                <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleConfirm(actionsFor)}>
-                  Confirmar presença
-                </button>
+
+              {dayItems.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <AnimatePresence mode="popLayout">
+                    {dayItems.map((s) => (
+                      <motion.div
+                        key={s.id}
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -8 }}
+                        transition={{ duration: 0.22, ease: "easeOut" }}
+                        className="card agenda-card"
+                        style={{ borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}` }}
+                      >
+                        <div className="agenda-card-top">
+                          <div className="agenda-time">{s.time.slice(0, 5)}</div>
+                          <div className="agenda-card-main">
+                            <div className="agenda-patient-name">{s.patient_name}</div>
+                            <div className="agenda-procedure">{s.procedure}</div>
+                          </div>
+                          <button className="mobile-icon-btn agenda-item-action-btn" onClick={() => setActionsFor(s)}>
+                            ⋮
+                          </button>
+                        </div>
+                        <div className="agenda-status-row">
+                          <span className={`status-chip status-chip-${STATUS_COLOR[s.status]}`}>
+                            <span className="status-dot" />
+                            {STATUS_LABEL[s.status]}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
               )}
-              {(actionsFor.status === "Agendado" || actionsFor.status === "Confirmado") && (
+            </>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {actionsFor && (
+          <motion.div
+            className="modal-overlay"
+            style={{ animation: "none" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setActionsFor(null)}
+          >
+            <motion.div
+              className="modal-card"
+              style={{ maxWidth: 420, animation: "none" }}
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="agenda-sheet-header">
+                <div>
+                  <div className="text-h3">{actionsFor.patient_name}</div>
+                  <div className="agenda-sheet-subtitle">
+                    {actionsFor.procedure} · {new Date(`${actionsFor.date}T12:00:00`).toLocaleDateString("pt-BR")} às {actionsFor.time.slice(0, 5)}
+                  </div>
+                </div>
+                <button className="mobile-icon-btn" onClick={() => setActionsFor(null)} aria-label="Fechar">
+                  <XIcon width={15} height={15} />
+                </button>
+              </div>
+
+              <div className="agenda-sheet-actions">
+                {actionsFor.status === "Agendado" && (
+                  <button className="agenda-sheet-action" onClick={() => handleConfirm(actionsFor)}>
+                    <span className="agenda-sheet-action-icon">
+                      <CheckIcon width={16} height={16} />
+                    </span>
+                    Confirmar presença
+                  </button>
+                )}
+                {canAct(actionsFor) && (
+                  <>
+                    <button className="agenda-sheet-action" onClick={() => openReschedule(actionsFor)}>
+                      <span className="agenda-sheet-action-icon">
+                        <PencilIcon width={16} height={16} />
+                      </span>
+                      Editar sessão (remarcar)
+                    </button>
+                    <button className="agenda-sheet-action" onClick={() => handleOutcome(actionsFor, "completed")}>
+                      <span className="agenda-sheet-action-icon">
+                        <CheckIcon width={16} height={16} />
+                      </span>
+                      Marcar como realizada
+                    </button>
+                    <button className="agenda-sheet-action" onClick={() => handleOutcome(actionsFor, "no_show")}>
+                      <span className="agenda-sheet-action-icon">
+                        <XIcon width={16} height={16} />
+                      </span>
+                      Marcar falta
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {canAct(actionsFor) && (
                 <>
-                  <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => openReschedule(actionsFor)}>
-                    Editar sessão (remarcar)
-                  </button>
-                  <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleOutcome(actionsFor, "completed")}>
-                    Marcar como realizado
-                  </button>
-                  <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => handleOutcome(actionsFor, "no_show")}>
-                    Marcar como faltou
+                  <div className="agenda-sheet-divider" />
+                  <button className="agenda-sheet-action agenda-sheet-action-danger" onClick={() => handleCancel(actionsFor)}>
+                    <span className="agenda-sheet-action-icon agenda-sheet-action-icon-danger">
+                      <TrashIcon width={16} height={16} />
+                    </span>
+                    Cancelar sessão
                   </button>
                 </>
               )}
-              {(actionsFor.status === "Agendado" || actionsFor.status === "Confirmado") && (
-                <button className="btn-danger" style={{ justifyContent: "flex-start" }} onClick={() => handleCancel(actionsFor)}>
-                  Cancelar sessão
-                </button>
-              )}
-              <button className="btn btn-secondary" style={{ justifyContent: "flex-start" }} onClick={() => setActionsFor(null)}>
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {rescheduleFor && (
-        <div className="modal-overlay" onClick={() => setRescheduleFor(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>
-            <div className="text-h3" style={{ marginBottom: 4 }}>Editar sessão</div>
-            <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 12 }}>
-              {rescheduleFor.patient_name} — {rescheduleFor.procedure}
-            </div>
-            <form onSubmit={handleReschedule} style={{ display: "grid", gap: 12 }}>
-              <div>
-                <label className="field-label">Data</label>
-                <input className="input" type="date" required value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+      <AnimatePresence>
+        {rescheduleFor && (
+          <motion.div
+            className="modal-overlay"
+            style={{ animation: "none" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setRescheduleFor(null)}
+          >
+            <motion.div
+              className="modal-card"
+              style={{ maxWidth: 380, animation: "none" }}
+              initial={{ opacity: 0, y: 16, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-h3" style={{ marginBottom: 4 }}>
+                Editar sessão
               </div>
-              <div>
-                <label className="field-label">Horário</label>
-                <input className="input" type="time" required value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
+              <div className="agenda-sheet-subtitle" style={{ marginBottom: 12 }}>
+                {rescheduleFor.patient_name} — {rescheduleFor.procedure}
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button className="btn" type="submit" disabled={savingReschedule}>
-                  {savingReschedule ? "Salvando..." : "Salvar"}
-                </button>
-                <button className="btn btn-secondary" type="button" onClick={() => setRescheduleFor(null)}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <form onSubmit={handleReschedule} style={{ display: "grid", gap: 12 }}>
+                <div>
+                  <label className="field-label">Data</label>
+                  <input className="input" type="date" required value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="field-label">Horário</label>
+                  <input className="input" type="time" required value={rescheduleTime} onChange={(e) => setRescheduleTime(e.target.value)} />
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button className="btn" type="submit" disabled={savingReschedule}>
+                    {savingReschedule ? "Salvando..." : "Salvar"}
+                  </button>
+                  <button className="btn btn-secondary" type="button" onClick={() => setRescheduleFor(null)}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         open={!!cancelFor}
@@ -568,5 +687,6 @@ export function Agenda() {
         onCancel={() => setCancelFor(null)}
       />
     </div>
+    </MotionConfig>
   );
 }

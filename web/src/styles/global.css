@@ -759,21 +759,6 @@ button.card {
   }
 }
 
-.agenda-item-enter {
-  animation: agendaItemIn 0.25s ease both;
-}
-
-@keyframes agendaItemIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -788,10 +773,6 @@ button.card {
   min-height: 62px;
 }
 
-.agenda-day-row {
-  padding: 14px 18px 14px 14px;
-}
-
 .agenda-item-action-btn {
   width: 32px;
   height: 32px;
@@ -803,8 +784,8 @@ button.card {
     min-height: 78px;
   }
 
-  .agenda-day-row {
-    padding: 18px 20px 18px 16px;
+  .agenda-card-top {
+    padding: 4px 0;
   }
 
   .agenda-item-action-btn {
@@ -818,6 +799,275 @@ button.card {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+}
+
+/* Card de sessao da Agenda */
+.agenda-card {
+  padding: 14px 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.agenda-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.agenda-time {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  width: 40px;
+  flex: 0 0 40px;
+  padding-top: 2px;
+}
+
+.agenda-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.agenda-patient-name {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.agenda-procedure {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.agenda-status-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: currentColor;
+}
+
+.status-chip-blue {
+  color: var(--blue);
+}
+
+.status-chip-green {
+  color: var(--green);
+}
+
+.status-chip-yellow {
+  color: var(--yellow);
+}
+
+.status-chip-red {
+  color: var(--red);
+}
+
+.status-chip-neutral {
+  color: var(--neutral);
+}
+
+/* Semana - celulas do day-strip */
+.week-day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 54px;
+  padding: 10px 8px 8px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.week-day-cell:hover {
+  background: var(--border-soft);
+}
+
+.week-day-cell:active {
+  transform: scale(0.97);
+}
+
+.week-day-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.week-day-number {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.week-day-indicators {
+  height: 6px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.week-day-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.week-day-dot-sessions {
+  background: var(--text-faint);
+}
+
+.week-day-cell.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.week-day-cell.active .week-day-label,
+.week-day-cell.active .week-day-number {
+  color: #fff;
+}
+
+.week-day-cell.active .week-day-dot {
+  background: #fff;
+}
+
+/* Bottom sheet de acoes da sessao */
+.agenda-sheet-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.agenda-sheet-subtitle {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.agenda-sheet-actions {
+  display: grid;
+  gap: 2px;
+}
+
+.agenda-sheet-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 8px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.agenda-sheet-action:hover {
+  background: var(--border-soft);
+}
+
+.agenda-sheet-action:active {
+  transform: scale(0.98);
+}
+
+.agenda-sheet-action-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 9px;
+  background: var(--accent-bg);
+  color: var(--accent-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.agenda-sheet-action-icon-danger {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.agenda-sheet-action-danger {
+  color: var(--red);
+}
+
+.agenda-sheet-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 8px 0;
+}
+
+/* Toasts */
+.toast-stack {
+  position: fixed;
+  bottom: calc(var(--safe-bottom, 0px) + 84px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+
+@media (min-width: 769px) {
+  .toast-stack {
+    bottom: auto;
+    top: 20px;
+    left: auto;
+    right: 24px;
+    transform: none;
+    align-items: flex-end;
+  }
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(31, 36, 32, 0.18);
+  pointer-events: auto;
+  white-space: nowrap;
+}
+
+.toast-icon {
+  display: flex;
+  align-items: center;
+  color: inherit;
+}
+
+.toast-error {
+  background: var(--red);
+  color: #fff;
 }
 
 .chip {
