@@ -20,16 +20,21 @@ export function Login() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: ACCOUNT_EMAIL, password });
-    if (error) setError("Senha inválida.");
-    setSubmitting(false);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: ACCOUNT_EMAIL, password });
+      if (error) setError("Senha inválida.");
+    } catch {
+      setError("Não foi possível conectar ao servidor. Tente novamente mais tarde.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg)" }}>
-      <form onSubmit={handleSubmit} className="card" style={{ width: "100%", maxWidth: 360 }}>
-        <div style={{ textAlign: "center", marginBottom: 22 }}>
-          <div className="sidebar-brand-mark" style={{ margin: "0 auto 12px" }}>
+    <div className="login-shell">
+      <form onSubmit={handleSubmit} className="login-card">
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div className="sidebar-brand-mark" style={{ width: 44, height: 44, borderRadius: 13, fontSize: 24, margin: "0 auto 14px" }}>
             <span>C</span>
           </div>
           <h1 className="page-title" style={{ fontSize: 22 }}>
@@ -40,7 +45,7 @@ export function Login() {
 
         {error && <div className="error-text">{error}</div>}
 
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 18 }}>
           <label className="field-label">Senha</label>
           <input className="input" type="password" required autoFocus value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>

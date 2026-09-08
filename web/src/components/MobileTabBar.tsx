@@ -17,9 +17,21 @@ export function MobileTabBar() {
   const location = useLocation();
   const isSecondaryActive = SECONDARY_PATHS.some((p) => location.pathname.startsWith(p));
 
+  const isTabActive = (tab: (typeof TABS)[number]) =>
+    tab.end ? location.pathname === tab.to : location.pathname.startsWith(tab.to);
+
+  const totalItems = TABS.length + 1;
+  const activeIndex = isSecondaryActive
+    ? TABS.length
+    : Math.max(0, TABS.findIndex(isTabActive));
+
   return (
     <>
       <nav className="mobile-tabbar">
+        <span
+          className="mobile-tabbar-indicator"
+          style={{ width: `${100 / totalItems}%`, transform: `translateX(${activeIndex * 100}%)` }}
+        />
         {TABS.map((tab) => (
           <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `mobile-tabbar-item${isActive ? " active" : ""}`}>
             <tab.icon width={21} height={21} />

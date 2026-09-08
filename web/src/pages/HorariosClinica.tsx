@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { LoadingState } from "../components/Skeleton";
 import { api } from "../lib/api";
 
 interface BusinessHourRow {
@@ -145,7 +146,7 @@ export function HorariosClinica() {
     }
   }
 
-  if (!rows) return <div className="empty-state">Carregando...</div>;
+  if (!rows) return <LoadingState />;
 
   return (
     <div>

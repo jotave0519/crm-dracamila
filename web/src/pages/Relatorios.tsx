@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { LoadingState } from "../components/Skeleton";
 import { api } from "../lib/api";
 
 interface ReportData {
@@ -54,7 +55,7 @@ export function Relatorios() {
       </div>
 
       {error && <div className="error-text">{error}</div>}
-      {!data && !error && <div className="empty-state">Carregando...</div>}
+      {!data && !error && <LoadingState />}
 
       {data && (
         <>

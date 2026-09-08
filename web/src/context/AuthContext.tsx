@@ -15,6 +15,7 @@ interface AuthContextValue {
   session: Session | null;
   staff: StaffMe | null;
   loading: boolean;
+  error: string | null;
   signOut: () => Promise<void>;
 }
 
@@ -24,18 +25,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [staff, setStaff] = useState<StaffMe | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    let done = false;
+    const finish = (nextSession: Session | null, err?: string) => {
+      if (done) return;
+      done = true;
+      setSession(nextSession);
+      if (err) setError(err);
       setLoading(false);
-    });
+    };
+
+    // Evita ficar preso em "Carregando..." caso o Supabase esteja
+    // indisponivel (projeto pausado, rede fora, DNS quebrado, etc.).
+    const timeout = setTimeout(() => {
+      finish(null, "Nao foi possivel conectar ao servidor de autenticacao. Tente novamente mais tarde.");
+    }, 8000);
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => finish(data.session))
+      .catch(() => finish(null, "Falha ao verificar a sessao. O servico pode estar temporariamente indisponivel."))
+      .finally(() => clearTimeout(timeout));
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
     });
 
-    return () => subscription.subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      subscription.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -50,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
-  return <AuthContext.Provider value={{ session, staff, loading, signOut }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ session, staff, loading, error, signOut }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {

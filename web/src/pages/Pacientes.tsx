@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
+import { SkeletonList } from "../components/Skeleton";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
@@ -107,7 +108,7 @@ export function Pacientes() {
         {formFields}
       </FormSheet>
 
-      {items === null && <div className="empty-state">Carregando...</div>}
+      {items === null && <SkeletonList count={6} />}
       {items !== null && items.length === 0 && search && <div className="empty-state">Nenhum paciente encontrado para "{search}".</div>}
       {items !== null && items.length === 0 && !search && (
         <EmptyState title="Nenhum paciente cadastrado" description="Comece cadastrando o primeiro paciente da clínica." actionLabel="Cadastrar primeiro paciente" onAction={() => setShowForm(true)} />

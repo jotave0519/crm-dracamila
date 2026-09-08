@@ -4,6 +4,7 @@ import { BackHeader } from "../components/BackHeader";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { EvolutionLineChart } from "../components/EvolutionLineChart";
+import { LoadingState } from "../components/Skeleton";
 import { api } from "../lib/api";
 
 interface Patient {
@@ -678,7 +679,7 @@ export function PatientDetail() {
   }
 
   if (error && !patient) return <div className="empty-state">{error}</div>;
-  if (!patient) return <div className="empty-state">Carregando...</div>;
+  if (!patient) return <LoadingState />;
 
   const saveBar = (
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>

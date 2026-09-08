@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -22,6 +23,16 @@ import { TiposAtendimento } from "./pages/TiposAtendimento";
 import { WhatsappIA } from "./pages/WhatsappIA";
 
 export function App() {
+  // Some a splash critica (ver index.html) assim que o React montou - evita
+  // o "flash" de tela vazia e o piscar de tema entre o HTML e o app.
+  useEffect(() => {
+    const splash = document.getElementById("app-splash");
+    if (!splash) return;
+    splash.classList.add("splash-hide");
+    const timeout = setTimeout(() => splash.remove(), 250);
+    return () => clearTimeout(timeout);
+  }, []);
+
   return (
     <ThemeProvider>
       <BrowserRouter>

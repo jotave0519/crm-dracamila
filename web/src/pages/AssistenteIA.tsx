@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { LoadingState } from "../components/Skeleton";
 import { api } from "../lib/api";
 
 interface AiSettings {
@@ -167,7 +168,7 @@ export function AssistenteIA() {
     }
   }
 
-  if (!settings) return <div className="empty-state">Carregando...</div>;
+  if (!settings) return <LoadingState />;
 
   return (
     <div style={{ maxWidth: 640 }}>

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { SkeletonRow } from "../components/Skeleton";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
@@ -86,7 +87,8 @@ export function Conversas() {
 
   const list = (
     <div className="card" style={{ padding: 0, flex: isMobile ? undefined : "0 0 320px" }}>
-      {items === null && <div className="empty-state">Carregando...</div>}
+      {items === null &&
+        Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
       {items?.map((c) => (
         <div key={c.id} className="mobile-list-item" style={{ cursor: "pointer" }} onClick={() => setSelectedId(c.id)}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>

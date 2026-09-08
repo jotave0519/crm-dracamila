@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { LoadingState } from "../components/Skeleton";
 import { api } from "../lib/api";
 
 interface WithoutReturn {
@@ -52,7 +53,7 @@ export function Lembretes() {
   }, []);
 
   if (error) return <div className="empty-state">{error}</div>;
-  if (!data) return <div className="empty-state">Carregando...</div>;
+  if (!data) return <LoadingState />;
 
   const sections = [
     {

@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MonthlyBarChart } from "../components/MonthlyBarChart";
+import { SkeletonKpiGrid } from "../components/Skeleton";
 import { useClinic } from "../context/ClinicContext";
 import { useCountUp } from "../hooks/useCountUp";
 import { api } from "../lib/api";
@@ -232,7 +233,15 @@ export function Dashboard() {
   const revenueToday = useCountUp(revenueTodayRaw);
 
   if (error) return <div className="empty-state">{error}</div>;
-  if (!data) return <div className="empty-state">Carregando...</div>;
+  if (!data) {
+    return (
+      <div>
+        <div className="skeleton skeleton-title" style={{ width: 220, height: 24, marginBottom: 8 }} />
+        <div className="skeleton skeleton-text" style={{ width: 300, marginBottom: 24 }} />
+        <SkeletonKpiGrid count={8} />
+      </div>
+    );
+  }
 
   return (
     <div>
