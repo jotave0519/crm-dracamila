@@ -308,24 +308,24 @@ export function Estoque() {
 
       <div className="kpi-grid" style={{ marginBottom: 20 }}>
         <div className="card">
+          <div className="kpi-label">Produtos cadastrados</div>
           <div className="kpi-value">{summary ? summary.totalItems : "—"}</div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Produtos cadastrados</div>
         </div>
         <div className="card">
+          <div className="kpi-label">Estoque baixo</div>
           <div className="kpi-value" style={{ color: summary && summary.lowStock > 0 ? "var(--red)" : undefined }}>
             {summary ? summary.lowStock : "—"}
           </div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Estoque baixo</div>
         </div>
         <div className="card">
+          <div className="kpi-label">Sem estoque</div>
           <div className="kpi-value" style={{ color: summary && summary.outOfStock > 0 ? "var(--red)" : undefined }}>
             {summary ? summary.outOfStock : "—"}
           </div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Sem estoque</div>
         </div>
         <div className="card">
+          <div className="kpi-label">Valor total em estoque</div>
           <div className="kpi-value">{summary ? formatMoney(summary.totalValue) : "—"}</div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Valor total em estoque</div>
         </div>
       </div>
 

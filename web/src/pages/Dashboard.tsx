@@ -96,27 +96,25 @@ function KpiGroup({ title, accent, items }: { title: string; accent: string; ite
         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>{title}</span>
       </div>
       <div className="kpi-grid" style={{ marginBottom: 0 }}>
-        {items.map((it) =>
-          it.onClick ? (
-            <button key={it.label} className="card" style={{ textAlign: "left", cursor: "pointer" }} onClick={it.onClick}>
+        {items.map((it) => {
+          const inner = (
+            <>
+              <div className="kpi-label">{it.label}</div>
               <div className="kpi-value" style={it.color ? { color: it.color } : undefined}>
                 {it.value}
               </div>
-              <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>
-                {it.label}
-              </div>
+            </>
+          );
+          return it.onClick ? (
+            <button key={it.label} className="card" style={{ textAlign: "left", cursor: "pointer" }} onClick={it.onClick}>
+              {inner}
             </button>
           ) : (
             <div key={it.label} className="card">
-              <div className="kpi-value" style={it.color ? { color: it.color } : undefined}>
-                {it.value}
-              </div>
-              <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>
-                {it.label}
-              </div>
+              {inner}
             </div>
-          )
-        )}
+          );
+        })}
       </div>
     </div>
   );
@@ -284,7 +282,7 @@ export function Dashboard() {
         </button>
       )}
 
-      <div className="grid-responsive-4" style={{ gap: 16, marginBottom: 24 }}>
+      <div className="kpi-grid" style={{ gap: 16, marginBottom: 24 }}>
         <HighlightCard label="Pacientes atendidos hoje" value={String(attendedToday)} sub={`de ${data.todayAppointments.length} agendados`} />
         <HighlightCard
           label="Próximo atendimento"

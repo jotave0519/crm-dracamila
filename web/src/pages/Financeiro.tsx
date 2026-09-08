@@ -433,22 +433,22 @@ export function Financeiro() {
 
       <div className="kpi-grid" style={{ marginBottom: 20 }}>
         <div className="card">
+          <div className="kpi-label">Receita do período</div>
           <div className="kpi-value">{summary ? formatMoney(summary.revenue) : "—"}</div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Receita do período</div>
         </div>
         <div className="card">
+          <div className="kpi-label">Despesas do período</div>
           <div className="kpi-value">{summary ? formatMoney(summary.expenses) : "—"}</div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Despesas do período</div>
         </div>
         <div className="card">
+          <div className="kpi-label">Lucro líquido</div>
           <div className="kpi-value" style={{ color: summary && summary.profit < 0 ? "var(--red)" : undefined }}>
             {summary ? formatMoney(summary.profit) : "—"}
           </div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Lucro líquido</div>
         </div>
         <div className="card">
+          <div className="kpi-label">Contas pendentes</div>
           <div className="kpi-value">{summary ? formatMoney(summary.pending) : "—"}</div>
-          <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Contas pendentes</div>
         </div>
       </div>
 
