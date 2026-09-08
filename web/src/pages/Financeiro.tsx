@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
+import { PlusIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
@@ -414,7 +415,8 @@ export function Financeiro() {
           <p className="page-subtitle">Receitas e despesas da clínica</p>
         </div>
         <button className="btn" onClick={startCreate}>
-          + Nova movimentação
+          <PlusIcon width={16} height={16} />
+          Nova movimentação
         </button>
       </div>
 

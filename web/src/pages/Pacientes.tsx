@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
+import { PlusIcon } from "../components/icons";
 import { SkeletonList } from "../components/Skeleton";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
@@ -91,7 +92,8 @@ export function Pacientes() {
           <p className="page-subtitle">Cadastro e histórico de atendimento</p>
         </div>
         <button className="btn" onClick={() => setShowForm(true)}>
-          + Novo paciente
+          <PlusIcon width={16} height={16} />
+          Novo paciente
         </button>
       </div>
 

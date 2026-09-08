@@ -67,6 +67,9 @@
 
   --neutral: #a4ab9e;
   --neutral-bg: rgba(255, 255, 255, 0.06);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.22);
+  --overlay: rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -361,6 +364,18 @@ a.card:active {
   background: var(--accent-dark);
 }
 
+/* No dark o --accent fica claro demais pra carregar texto branco - fixa um
+   verde de meio-tom (o mesmo do tema claro) com contraste adequado. */
+[data-theme="dark"] .btn {
+  background: #57896a;
+  color: #f2f7f3;
+  box-shadow: none;
+}
+
+[data-theme="dark"] .btn:hover {
+  background: #659a79;
+}
+
 .btn:active,
 .btn-secondary:active,
 .btn-danger:active {
@@ -550,10 +565,36 @@ a.card:active {
   box-shadow: var(--shadow-card);
 }
 
+/* Link de acao discreto ("Ver mais", "Ocultar" etc.) - herda a cor accent,
+   ganha sublinhado sutil no hover e alinha um chevron ao lado. */
+.link-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.link-accent:hover {
+  color: var(--accent-dark);
+}
+
+.link-accent:active {
+  opacity: 0.7;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+}
+
+/* Tabela larga rola dentro do proprio card, nunca a pagina inteira. */
+.card:has(> .table),
+.card:has(> table) {
+  overflow-x: auto;
 }
 
 .table th {
@@ -839,7 +880,7 @@ a.card:active {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(150deg, var(--accent), var(--accent-dark));
+  background: linear-gradient(150deg, #5c8a6b, #3f6249);
   color: #f2f7f3;
   display: flex;
   align-items: center;

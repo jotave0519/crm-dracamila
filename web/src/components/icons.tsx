@@ -27,3 +27,18 @@ export const TrashIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d=
 export const PencilIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />;
 export const MenuIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M4 6h16M4 12h16M4 18h16" />;
 export const CheckIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="M20 6 9 17l-5-5" />;
+export const ChevronLeftIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="m15 18-6-6 6-6" />;
+export const ChevronRightIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="m9 18 6-6-6-6" />;
+export const ChevronDownIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="m6 9 6 6 6-6" />;
+export const MoreVerticalIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M12 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM12 11a1 1 0 1 0 0 2 1 1 0 0 0 0-2ZM12 17a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z" />
+);
+export const AlertTriangleIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+);
+export const PackageIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="m7.5 4.3 9 5.2M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16ZM3.3 7 12 12l8.7-5M12 22V12" />
+);
+export const InboxIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M22 12h-6l-2 3h-4l-2-3H2M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z" />
+);

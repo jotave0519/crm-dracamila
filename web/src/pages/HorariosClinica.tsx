@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { PlusIcon } from "../components/icons";
 import { LoadingState } from "../components/Skeleton";
 import { api } from "../lib/api";
 
@@ -50,7 +51,8 @@ function SlotEditor({ times, onAdd, onRemove }: { times: string[]; onAdd: (t: st
             onAdd(draft);
           }}
         >
-          + Adicionar horário
+          <PlusIcon width={15} height={15} />
+          Adicionar horário
         </button>
       </div>
     </div>

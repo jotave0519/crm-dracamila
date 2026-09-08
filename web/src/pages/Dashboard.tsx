@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AlertTriangleIcon, BellIcon, ChevronDownIcon, ChevronRightIcon } from "../components/icons";
 import { MonthlyBarChart } from "../components/MonthlyBarChart";
 import { SkeletonKpiGrid } from "../components/Skeleton";
 import { useClinic } from "../context/ClinicContext";
@@ -136,10 +137,10 @@ function ListCard({ title, onSeeAll, children }: { title: string; onSeeAll?: () 
   return (
     <div className="card">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div style={{ fontSize: 14.5, fontWeight: 600 }}>{title}</div>
+        <h3 className="text-h3">{title}</h3>
         {onSeeAll && (
-          <button style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }} onClick={onSeeAll}>
-            Ver mais
+          <button className="link-accent" onClick={onSeeAll}>
+            Ver mais <ChevronRightIcon width={13} height={13} />
           </button>
         )}
       </div>
@@ -151,7 +152,7 @@ function ListCard({ title, onSeeAll, children }: { title: string; onSeeAll?: () 
 function ChartCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="card">
-      <div style={{ fontSize: 14.5, fontWeight: 600, marginBottom: 12 }}>{title}</div>
+      <h3 className="text-h3" style={{ marginBottom: 12 }}>{title}</h3>
       {children}
     </div>
   );
@@ -182,8 +183,11 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left" }}>
-        <span style={{ fontSize: 14.5, fontWeight: 600 }}>{title}</span>
-        <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>{open ? "▲ Ocultar" : "▼ Mostrar indicadores"}</span>
+        <span className="text-h3">{title}</span>
+        <span className="link-accent">
+          {open ? "Ocultar" : "Mostrar indicadores"}
+          <ChevronDownIcon width={14} height={14} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+        </span>
       </button>
       {open && <div style={{ marginTop: 22 }}>{children}</div>}
     </div>
@@ -254,12 +258,29 @@ export function Dashboard() {
         <button
           className="card"
           onClick={() => navigate("/lembretes")}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 24, textAlign: "left" }}
+          style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", marginBottom: 24, textAlign: "left" }}
         >
-          <span style={{ fontSize: 13.5, fontWeight: 500 }}>
+          <span
+            style={{
+              width: 32,
+              height: 32,
+              flex: "0 0 32px",
+              borderRadius: 9,
+              background: "var(--accent-bg)",
+              color: "var(--accent-dark)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <BellIcon width={16} height={16} />
+          </span>
+          <span style={{ flex: 1, fontSize: 13.5, fontWeight: 500 }}>
             Você tem <strong>{reminderCount}</strong> lembrete{reminderCount > 1 ? "s" : ""} pra hoje
           </span>
-          <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--accent)" }}>Ver lembretes</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 12.5, fontWeight: 600, color: "var(--accent)" }}>
+            Ver lembretes <ChevronRightIcon width={14} height={14} />
+          </span>
         </button>
       )}
 
@@ -319,7 +340,10 @@ export function Dashboard() {
           {data.patientsWithoutReturn.length === 0 && <div className="empty-state">Todo mundo em dia.</div>}
           {data.patientsWithoutReturn.map((p) => (
             <div key={p.patientId} style={{ padding: "10px 4px", borderTop: "1px solid var(--border-soft)" }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>⚠ {p.patientName}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--red)", flex: "0 0 6px" }} />
+                {p.patientName}
+              </div>
               <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Há {p.daysSince} dias</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn-secondary" style={{ fontSize: 11, padding: "4px 8px" }} onClick={() => navigate(`/pacientes/${p.patientId}`)}>
@@ -374,12 +398,27 @@ export function Dashboard() {
         <button
           className="card"
           onClick={() => navigate("/estoque")}
-          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", marginBottom: 24, borderLeft: "3px solid var(--red)" }}
+          style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", marginBottom: 24, borderLeft: "3px solid var(--red)" }}
         >
-          <span style={{ fontSize: 16 }}>⚠️</span>
-          <span style={{ fontSize: 13 }}>
+          <span
+            style={{
+              width: 32,
+              height: 32,
+              flex: "0 0 32px",
+              borderRadius: 9,
+              background: "var(--red-bg)",
+              color: "var(--red)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AlertTriangleIcon width={16} height={16} />
+          </span>
+          <span style={{ flex: 1, fontSize: 13 }}>
             <strong>Estoque</strong> — {data.kpis.lowStockCount} produto{data.kpis.lowStockCount > 1 ? "s" : ""} com estoque baixo
           </span>
+          <ChevronRightIcon width={15} height={15} style={{ color: "var(--text-faint)" }} />
         </button>
       )}
 

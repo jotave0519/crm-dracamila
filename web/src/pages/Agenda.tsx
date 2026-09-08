@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
-import { CalendarIcon, CheckIcon, PencilIcon, TrashIcon, XIcon } from "../components/icons";
+import { CalendarIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, MoreVerticalIcon, PencilIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
@@ -421,7 +421,8 @@ export function Agenda() {
           <p className="page-subtitle">{subtitle}</p>
         </div>
         <button className="btn" onClick={() => setShowForm(true)}>
-          + Nova sessão
+          <PlusIcon width={16} height={16} />
+          Nova sessão
         </button>
       </div>
 
@@ -436,14 +437,14 @@ export function Agenda() {
           ))}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button className="btn-secondary" style={{ padding: "6px 12px" }} onClick={goPrev}>
-            ←
+          <button className="btn-secondary" style={{ padding: "0 10px", height: 36 }} onClick={goPrev} aria-label="Anterior">
+            <ChevronLeftIcon width={16} height={16} />
           </button>
-          <button className="btn-secondary" style={{ padding: "6px 14px" }} onClick={goToday}>
+          <button className="btn-secondary" style={{ padding: "0 14px", height: 36 }} onClick={goToday}>
             {navLabel(viewMode, selectedDate)}
           </button>
-          <button className="btn-secondary" style={{ padding: "6px 12px" }} onClick={goNext}>
-            →
+          <button className="btn-secondary" style={{ padding: "0 10px", height: 36 }} onClick={goNext} aria-label="Próximo">
+            <ChevronRightIcon width={16} height={16} />
           </button>
         </div>
         <input className="input" type="date" style={{ maxWidth: 160 }} value={toIso(selectedDate)} onChange={(e) => setSelectedDate(new Date(`${e.target.value}T12:00:00`))} />
@@ -528,8 +529,8 @@ export function Agenda() {
                             <div className="agenda-patient-name">{s.patient_name}</div>
                             <div className="agenda-procedure">{s.procedure}</div>
                           </div>
-                          <button className="mobile-icon-btn agenda-item-action-btn" onClick={() => setActionsFor(s)}>
-                            ⋮
+                          <button className="mobile-icon-btn agenda-item-action-btn" onClick={() => setActionsFor(s)} aria-label="Ações da sessão">
+                            <MoreVerticalIcon width={16} height={16} />
                           </button>
                         </div>
                         <div className="agenda-status-row">

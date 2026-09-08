@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
+import { PlusIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
@@ -190,7 +191,8 @@ export function TiposAtendimento() {
           <p className="page-subtitle">Catálogo de sessões oferecidas pela clínica</p>
         </div>
         <button className="btn" onClick={startCreate}>
-          + Novo
+          <PlusIcon width={16} height={16} />
+          Novo
         </button>
       </div>
 

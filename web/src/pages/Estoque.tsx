@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
+import { PlusIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { api } from "../lib/api";
 
@@ -289,7 +290,8 @@ export function Estoque() {
           <p className="page-subtitle">Materiais e produtos da clínica</p>
         </div>
         <button className="btn" onClick={startCreate}>
-          + Novo produto
+          <PlusIcon width={16} height={16} />
+          Novo produto
         </button>
       </div>
 
