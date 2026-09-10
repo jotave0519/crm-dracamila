@@ -6,6 +6,7 @@ import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
 import { CalendarIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, MoreVerticalIcon, PencilIcon, PlusIcon, TrashIcon, XIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useSessionCache } from "../hooks/useSessionCache";
 import { api } from "../lib/api";
 import { useToast } from "../context/ToastContext";
 
@@ -226,9 +227,11 @@ function MonthGrid({ monthDate, schedules, onSelectDay }: { monthDate: Date; sch
 export function Agenda() {
   const isMobile = useIsMobile();
   const { showToast } = useToast();
-  const [viewMode, setViewMode] = useState<ViewMode>("semana");
+  const [viewMode, setViewMode] = useState<ViewMode>("dia");
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [schedules, setSchedules] = useState<ScheduleItem[] | null>(null);
+  // Cache entre navegacoes: ao voltar pra Agenda, mostra as ultimas sessoes
+  // conhecidas na hora (em vez de skeleton) enquanto a faixa atual recarrega.
+  const [schedules, setSchedules] = useSessionCache<ScheduleItem[]>("agenda-schedules");
   const [treatmentTypes, setTreatmentTypes] = useState<TreatmentType[]>([]);
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [error, setError] = useState<string | null>(null);

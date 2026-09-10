@@ -6,6 +6,7 @@ import { RevenueAreaChart } from "../components/RevenueAreaChart";
 import { SkeletonKpiGrid } from "../components/Skeleton";
 import { useClinic } from "../context/ClinicContext";
 import { useCountUp } from "../hooks/useCountUp";
+import { useSessionCache } from "../hooks/useSessionCache";
 import { api } from "../lib/api";
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -256,8 +257,10 @@ function CollapsibleSection({ title, children }: { title: string; children: Reac
 export function Dashboard() {
   const { professionalName } = useClinic();
   const navigate = useNavigate();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [reminderCount, setReminderCount] = useState<number | null>(null);
+  // Cache entre navegacoes: ao voltar pra essa tela, mostra o ultimo dado
+  // conhecido na hora (em vez de skeleton) enquanto atualiza por tras.
+  const [data, setData] = useSessionCache<DashboardData>("dashboard");
+  const [reminderCount, setReminderCount] = useSessionCache<number>("dashboard-reminders");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
