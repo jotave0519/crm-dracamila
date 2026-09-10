@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { InstallPrompt } from "./components/InstallPrompt";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { UpdatePrompt } from "./components/UpdatePrompt";
 import { AuthProvider } from "./context/AuthContext";
 import { ClinicProvider } from "./context/ClinicContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -35,6 +37,8 @@ export function App() {
 
   return (
     <ThemeProvider>
+      <InstallPrompt />
+      <UpdatePrompt />
       <BrowserRouter>
         <AuthProvider>
           <ClinicProvider>

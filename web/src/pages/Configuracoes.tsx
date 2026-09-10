@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { MoonIcon, SunIcon } from "../components/icons";
 import { api } from "../lib/api";
+import { isIos, promptInstall, useInstallState } from "../lib/pwaInstall";
+import { useToast } from "../context/ToastContext";
 
 interface ClinicSettings {
   name: string;
@@ -22,14 +24,28 @@ interface ClinicSettings {
 
 export function Configuracoes() {
   const { theme, setTheme } = useTheme();
+  const { showToast } = useToast();
   const [clinic, setClinic] = useState<ClinicSettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showIosInstructions, setShowIosInstructions] = useState(false);
+  const { deferredPrompt, installed } = useInstallState();
 
   useEffect(() => {
     api.get<{ clinic: ClinicSettings }>("/settings").then((r) => setClinic(r.clinic)).catch((e) => setError(e.message));
   }, []);
+
+  async function handleInstallClick() {
+    if (deferredPrompt) {
+      const outcome = await promptInstall();
+      if (outcome === "accepted") showToast("Aplicativo instalado.");
+      return;
+    }
+    if (isIos()) {
+      setShowIosInstructions((v) => !v);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -90,6 +106,41 @@ export function Configuracoes() {
                 onChange={(e) => setClinic({ ...clinic, days_without_return_threshold: Number(e.target.value) })}
               />
             </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: installed ? 0 : 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 600 }}>Aplicativo</div>
+              <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginTop: 2 }}>
+                {installed ? "Instalado na tela inicial deste aparelho" : "Instale pra abrir como um app, sem o navegador"}
+              </div>
+            </div>
+            <span className={`badge ${installed ? "badge-green" : "badge-neutral"}`}>{installed ? "Instalado" : "Não instalado"}</span>
+          </div>
+
+          {!installed && (
+            <>
+              <button className="btn btn-secondary" onClick={handleInstallClick}>
+                Instalar aplicativo
+              </button>
+              {showIosInstructions && (
+                <p
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--text-muted)",
+                    lineHeight: 1.6,
+                    marginTop: 12,
+                    background: "var(--border-soft)",
+                    padding: 12,
+                    borderRadius: 10,
+                  }}
+                >
+                  Toque em <strong>Compartilhar</strong> (o ícone com a seta ↑) e depois em <strong>"Adicionar à Tela de Início"</strong>.
+                </p>
+              )}
+            </>
           )}
         </div>
 
