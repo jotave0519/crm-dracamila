@@ -2,8 +2,9 @@ import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
-import { PlusIcon } from "../components/icons";
+import { CopyIcon, PencilIcon, PlusIcon, TrashIcon } from "../components/icons";
 import { useIsMobile } from "../hooks/useIsMobile";
+import { useSessionCache } from "../hooks/useSessionCache";
 import { api } from "../lib/api";
 
 type TransactionType = "receita" | "despesa";
@@ -163,9 +164,11 @@ export function Financeiro() {
   const [patientFilter, setPatientFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [chart, setChart] = useState<ChartMonth[] | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[] | null>(null);
+  // Cache entre navegacoes: ao voltar pra essa tela, mostra o ultimo dado
+  // conhecido na hora (em vez de skeleton) enquanto atualiza por tras.
+  const [summary, setSummary] = useSessionCache<Summary>("financeiro-summary");
+  const [chart, setChart] = useSessionCache<ChartMonth[]>("financeiro-chart");
+  const [transactions, setTransactions] = useSessionCache<Transaction[]>("financeiro-transactions");
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -431,33 +434,41 @@ export function Financeiro() {
         {formFields}
       </FormSheet>
 
-      <div className="kpi-grid" style={{ marginBottom: 20 }}>
+      <div className="kpi-grid" style={{ marginBottom: 24 }}>
         <div className="card">
           <div className="kpi-label">Receita do período</div>
-          <div className="kpi-value">{summary ? formatMoney(summary.revenue) : "—"}</div>
+          <div className="kpi-value" style={{ color: summary ? "var(--green)" : undefined }}>
+            {summary ? formatMoney(summary.revenue) : "—"}
+          </div>
         </div>
         <div className="card">
           <div className="kpi-label">Despesas do período</div>
-          <div className="kpi-value">{summary ? formatMoney(summary.expenses) : "—"}</div>
+          <div className="kpi-value" style={{ color: summary ? "var(--red)" : undefined }}>
+            {summary ? formatMoney(summary.expenses) : "—"}
+          </div>
         </div>
         <div className="card">
           <div className="kpi-label">Lucro líquido</div>
-          <div className="kpi-value" style={{ color: summary && summary.profit < 0 ? "var(--red)" : undefined }}>
+          <div className="kpi-value" style={{ color: summary ? (summary.profit < 0 ? "var(--red)" : "var(--green)") : undefined }}>
             {summary ? formatMoney(summary.profit) : "—"}
           </div>
         </div>
         <div className="card">
           <div className="kpi-label">Contas pendentes</div>
-          <div className="kpi-value">{summary ? formatMoney(summary.pending) : "—"}</div>
+          <div className="kpi-value" style={{ color: summary && summary.pending > 0 ? "var(--yellow)" : undefined }}>
+            {summary ? formatMoney(summary.pending) : "—"}
+          </div>
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div className="text-h3" style={{ marginBottom: 4 }}>Receita x despesa (últimos 6 meses)</div>
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h3 className="text-h3" style={{ marginBottom: 14 }}>
+          Receita x despesa (últimos 6 meses)
+        </h3>
         {chart ? <FinancialChart months={chart} /> : <div className="empty-state">Carregando...</div>}
       </div>
 
-      <div className="card" style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "flex-end", marginBottom: 20 }}>
+      <div className="card" style={{ display: "flex", flexWrap: "wrap", gap: 14, alignItems: "flex-end", marginBottom: 24 }}>
         <div>
           <label className="field-label">De</label>
           <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -513,7 +524,20 @@ export function Financeiro() {
         </div>
       </div>
 
-      {transactions === null && <div className="empty-state">Carregando...</div>}
+      {transactions === null && (
+        <div className="list-card card">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="list-row">
+              <div style={{ flex: 1 }}>
+                <div className="skeleton skeleton-text" style={{ width: "45%" }} />
+                <div className="skeleton skeleton-text" style={{ width: "25%" }} />
+              </div>
+              <div className="skeleton skeleton-text" style={{ width: 70 }} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {transactions !== null && transactions.length === 0 && (
         <EmptyState
           title="Nenhuma movimentação"
@@ -523,93 +547,82 @@ export function Financeiro() {
         />
       )}
 
-      {transactions !== null && transactions.length > 0 && isMobile && (
-        <div style={{ display: "grid", gap: 12 }}>
-          {transactions.map((t) => (
-            <div key={t.id} className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{t.description}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{t.category}</div>
-                </div>
-                <span className={`badge ${t.type === "receita" ? "badge-green" : "badge-red"}`}>{t.type === "receita" ? "Receita" : "Despesa"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: t.type === "receita" ? "var(--green)" : "var(--red)" }}>
-                  {t.type === "receita" ? "+" : "−"} {formatMoney(t.amount)}
-                </span>
-                <span className={`badge ${t.status === "Pago" ? "badge-green" : "badge-yellow"}`}>{t.status}</span>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
-                {new Date(`${t.transaction_date}T12:00:00`).toLocaleDateString("pt-BR")} · {t.payment_method}
-                {t.patientName ? ` · ${t.patientName}` : ""}
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => startEdit(t)}>
-                  Editar
-                </button>
-                <button className="btn-secondary" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => handleDuplicate(t)}>
-                  Duplicar
-                </button>
-                <button className="btn-danger" style={{ flex: "1 1 auto", height: 34, fontSize: 12.5 }} onClick={() => setPendingDelete(t)}>
-                  Excluir
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {transactions !== null && transactions.length > 0 && (
+        <div className="card list-card">
+          <div className="list-card-head">
+            <h3 className="text-h3">Movimentações</h3>
+            <span className="text-caption">
+              {transactions.length} {transactions.length === 1 ? "lançamento" : "lançamentos"}
+            </span>
+          </div>
 
-      {transactions !== null && transactions.length > 0 && !isMobile && (
-        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Descrição</th>
-                <th>Categoria</th>
-                <th>Paciente</th>
-                <th>Tipo</th>
-                <th>Pagamento</th>
-                <th>Data</th>
-                <th>Valor</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.description}</td>
-                  <td>{t.category}</td>
-                  <td>{t.patientName || "—"}</td>
-                  <td>
-                    <span className={`badge ${t.type === "receita" ? "badge-green" : "badge-red"}`}>{t.type === "receita" ? "Receita" : "Despesa"}</span>
-                  </td>
-                  <td>{t.payment_method}</td>
-                  <td>{new Date(`${t.transaction_date}T12:00:00`).toLocaleDateString("pt-BR")}</td>
-                  <td style={{ color: t.type === "receita" ? "var(--green)" : "var(--red)", fontWeight: 600 }}>
-                    {t.type === "receita" ? "+" : "−"} {formatMoney(t.amount)}
-                  </td>
-                  <td>
-                    <span className={`badge ${t.status === "Pago" ? "badge-green" : "badge-yellow"}`}>{t.status}</span>
-                  </td>
-                  <td>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => startEdit(t)}>
-                        Editar
-                      </button>
-                      <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDuplicate(t)}>
-                        Duplicar
-                      </button>
-                      <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => setPendingDelete(t)}>
-                        Excluir
-                      </button>
+          {isMobile
+            ? transactions.map((t) => (
+                <div key={t.id} className="mobile-list-item">
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.description}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        {t.category}
+                        {t.patientName ? ` · ${t.patientName}` : ""}
+                      </div>
                     </div>
-                  </td>
-                </tr>
+                    <span style={{ fontSize: 14.5, fontWeight: 700, color: t.type === "receita" ? "var(--green)" : "var(--red)", whiteSpace: "nowrap" }}>
+                      {t.type === "receita" ? "+" : "−"} {formatMoney(t.amount)}
+                    </span>
+                  </div>
+                  <div className="mobile-list-row" style={{ justifyContent: "space-between" }}>
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {new Date(`${t.transaction_date}T12:00:00`).toLocaleDateString("pt-BR")} · {t.payment_method}
+                    </span>
+                    <span className={`badge ${t.status === "Pago" ? "badge-green" : "badge-yellow"}`}>{t.status}</span>
+                  </div>
+                  <div className="mobile-list-actions">
+                    <button className="btn-secondary" style={{ flex: 1, height: 34, fontSize: 12.5 }} onClick={() => startEdit(t)}>
+                      <PencilIcon width={13} height={13} /> Editar
+                    </button>
+                    <button className="btn-secondary" style={{ flex: 1, height: 34, fontSize: 12.5 }} onClick={() => handleDuplicate(t)}>
+                      <CopyIcon width={13} height={13} /> Duplicar
+                    </button>
+                    <button className="icon-btn-sm danger" style={{ width: 34, height: 34, flex: "0 0 34px" }} onClick={() => setPendingDelete(t)} aria-label="Excluir">
+                      <TrashIcon width={15} height={15} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            : transactions.map((t) => (
+                <div key={t.id} className="list-row">
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{t.description}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {t.category} · {t.payment_method}
+                      {t.patientName ? ` · ${t.patientName}` : ""} · {new Date(`${t.transaction_date}T12:00:00`).toLocaleDateString("pt-BR")}
+                    </div>
+                  </div>
+                  <span className={`badge ${t.type === "receita" ? "badge-green" : "badge-red"}`} style={{ flex: "0 0 auto" }}>
+                    {t.type === "receita" ? "Receita" : "Despesa"}
+                  </span>
+                  <span
+                    style={{ fontSize: 14, fontWeight: 700, color: t.type === "receita" ? "var(--green)" : "var(--red)", flex: "0 0 auto", minWidth: 100, textAlign: "right" }}
+                  >
+                    {t.type === "receita" ? "+" : "−"} {formatMoney(t.amount)}
+                  </span>
+                  <span className={`badge ${t.status === "Pago" ? "badge-green" : "badge-yellow"}`} style={{ flex: "0 0 auto" }}>
+                    {t.status}
+                  </span>
+                  <div className="list-row-actions">
+                    <button className="icon-btn-sm" onClick={() => startEdit(t)} aria-label="Editar" title="Editar">
+                      <PencilIcon width={15} height={15} />
+                    </button>
+                    <button className="icon-btn-sm" onClick={() => handleDuplicate(t)} aria-label="Duplicar" title="Duplicar">
+                      <CopyIcon width={15} height={15} />
+                    </button>
+                    <button className="icon-btn-sm danger" onClick={() => setPendingDelete(t)} aria-label="Excluir" title="Excluir">
+                      <TrashIcon width={15} height={15} />
+                    </button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
         </div>
       )}
 
@@ -633,7 +646,7 @@ export function Financeiro() {
               </select>
               <input className="input" placeholder="Nome da categoria" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
               <button className="btn" type="submit" style={{ flex: "0 0 auto" }}>
-                + Add
+                <PlusIcon width={15} height={15} />
               </button>
             </form>
 
@@ -660,17 +673,18 @@ export function Financeiro() {
                           <>
                             <span style={{ flex: 1, fontSize: 13 }}>{c.name}</span>
                             <button
-                              className="btn-secondary"
-                              style={{ fontSize: 11.5, padding: "4px 8px" }}
+                              className="icon-btn-sm"
+                              aria-label="Editar categoria"
+                              title="Editar"
                               onClick={() => {
                                 setEditingCategoryId(c.id);
                                 setEditingCategoryName(c.name);
                               }}
                             >
-                              Editar
+                              <PencilIcon width={14} height={14} />
                             </button>
-                            <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => setPendingDeleteCategory(c)}>
-                              Excluir
+                            <button className="icon-btn-sm danger" aria-label="Excluir categoria" title="Excluir" onClick={() => setPendingDeleteCategory(c)}>
+                              <TrashIcon width={14} height={14} />
                             </button>
                           </>
                         )}

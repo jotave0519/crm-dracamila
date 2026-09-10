@@ -1186,6 +1186,75 @@ a.card:active {
   }
 }
 
+/* Botao de acao "integrado" (icone so, sem contorno) - usado nas linhas de
+   listas (ex: movimentacoes do Financeiro) pra Editar/Duplicar/Excluir nao
+   competirem visualmente com o conteudo da linha. */
+.icon-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 8px;
+  color: var(--text-faint);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.icon-btn-sm:hover {
+  background: var(--border-soft);
+  color: var(--text);
+}
+
+.icon-btn-sm:active {
+  transform: scale(0.93);
+}
+
+.icon-btn-sm.danger:hover {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+/* Lista de linhas separadas dentro de um card (movimentacoes financeiras) */
+.list-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.list-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 0.15s ease;
+}
+
+.list-row:last-child {
+  border-bottom: none;
+}
+
+.list-row:hover {
+  background: var(--border-soft);
+}
+
+.list-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
 /* Segmented ocupando a largura toda no mobile (Dia / Semana / Mes). */
 .segmented-full {
   display: grid;

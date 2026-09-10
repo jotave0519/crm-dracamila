@@ -44,3 +44,6 @@ export const InboxIcon = (props: SVGProps<SVGSVGElement>) => (
 );
 export const TrendingUpIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="m3 17 6-6 4 4 8-8M21 7v6M21 7h-6" />;
 export const TrendingDownIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="m3 7 6 6 4-4 8 8M21 17v-6M21 17h-6" />;
+export const CopyIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M9 9h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2ZM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+);
