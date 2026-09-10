@@ -53,10 +53,30 @@ function shortMonth(d: Date): string {
   return capitalize(d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""));
 }
 
-/** Rotulo do botao central da barra de navegacao - "Hoje" so quando a data selecionada e realmente hoje. */
+/** "Ontem" / "Hoje" / "Amanha" quando a data cai em um desses dias; senao null. */
+function relativeDayLabel(date: Date): string | null {
+  const target = toIso(date);
+  if (target === toIso(new Date())) return "Hoje";
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  if (target === toIso(y)) return "Ontem";
+  const t = new Date();
+  t.setDate(t.getDate() + 1);
+  if (target === toIso(t)) return "Amanhã";
+  return null;
+}
+
+/** Rotulo curto de um dia especifico: "Hoje", "Ontem", "Amanha" ou "Qua, 09/09". */
+function dayLabel(date: Date): string {
+  const rel = relativeDayLabel(date);
+  if (rel) return rel;
+  const weekday = capitalize(date.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""));
+  return `${weekday}, ${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Rotulo do botao central da barra de navegacao. */
 function navLabel(mode: ViewMode, date: Date): string {
-  if (toIso(date) === toIso(new Date())) return "Hoje";
-  if (mode === "dia") return `${String(date.getDate()).padStart(2, "0")} ${shortMonth(date)}`;
+  if (mode === "dia") return relativeDayLabel(date) || `${String(date.getDate()).padStart(2, "0")} ${shortMonth(date)}`;
   if (mode === "semana") {
     const week = weekDates(date);
     const start = week[0];
@@ -70,8 +90,10 @@ function navLabel(mode: ViewMode, date: Date): string {
 }
 
 function weekDates(center: Date): Date[] {
+  // Semana comeca na segunda-feira (convencao BR).
   const start = new Date(center);
-  start.setDate(start.getDate() - start.getDay());
+  const day = start.getDay();
+  start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
@@ -91,9 +113,9 @@ function rangeFor(mode: ViewMode, date: Date): { from: Date; to: Date } {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
   const gridStart = new Date(first);
-  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+  gridStart.setDate(gridStart.getDate() - ((gridStart.getDay() + 6) % 7));
   const gridEnd = new Date(last);
-  gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()));
+  gridEnd.setDate(gridEnd.getDate() + ((7 - gridEnd.getDay()) % 7));
   return { from: gridStart, to: gridEnd };
 }
 
@@ -115,7 +137,7 @@ function shiftDate(date: Date, mode: ViewMode, dir: 1 | -1): Date {
 
 const STATUS_LABEL: Record<string, string> = { Agendado: "Agendado", Confirmado: "Confirmado", Concluido: "Concluído", Faltou: "Faltou", Cancelado: "Cancelado" };
 const STATUS_COLOR: Record<string, string> = { Agendado: "blue", Confirmado: "yellow", Concluido: "green", Faltou: "red", Cancelado: "neutral" };
-const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const WEEKDAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 const EMPTY_FORM = { patientId: "", newPatientName: "", newPatientPhone: "", procedure: "", treatmentPlanId: "", time: "09:00" };
 
@@ -387,6 +409,13 @@ export function Agenda() {
   function goToday() {
     setSelectedDate(new Date());
   }
+  // Mobile: as setas paginam a FAIXA (uma semana), e cada dia se escolhe tocando na faixa.
+  function goPrevStrip() {
+    setSelectedDate(shiftDate(selectedDate, "semana", -1));
+  }
+  function goNextStrip() {
+    setSelectedDate(shiftDate(selectedDate, "semana", 1));
+  }
   function selectDayFromMonth(d: Date) {
     setSelectedDate(d);
     setViewMode("semana");
@@ -554,7 +583,15 @@ export function Agenda() {
     </form>
   );
 
-  const subtitle = viewMode === "dia" ? "Sessões do dia" : viewMode === "semana" ? "Sessões da semana" : "Visão mensal";
+  const subtitle = isMobile
+    ? viewMode === "mes"
+      ? "Visão mensal"
+      : `${dayItems.length} atendimento${dayItems.length === 1 ? "" : "s"} neste dia`
+    : viewMode === "dia"
+    ? "Sessões do dia"
+    : viewMode === "semana"
+    ? "Sessões da semana"
+    : "Visão mensal";
 
   const canAct = (s: ScheduleItem) => s.status === "Agendado" || s.status === "Confirmado";
 
@@ -577,27 +614,92 @@ export function Agenda() {
 
       {error && <div className="error-text">{error}</div>}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
-        <div className="segmented">
-          {(["dia", "semana", "mes"] as const).map((m) => (
-            <span key={m} className={`segmented-item${viewMode === m ? " active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setViewMode(m)}>
-              {m === "dia" ? "Dia" : m === "semana" ? "Semana" : "Mês"}
-            </span>
-          ))}
+      {isMobile ? (
+        <div style={{ marginBottom: 16 }}>
+          <div className="segmented segmented-full" style={{ marginBottom: 14 }}>
+            {(["dia", "semana", "mes"] as const).map((m) => (
+              <span key={m} className={`segmented-item${viewMode === m ? " active" : ""}`} onClick={() => setViewMode(m)}>
+                {m === "dia" ? "Dia" : m === "semana" ? "Semana" : "Mês"}
+              </span>
+            ))}
+          </div>
+
+          {viewMode === "mes" ? (
+            <div className="agenda-relnav">
+              <button className="agenda-relnav-btn" onClick={goPrev} aria-label="Mês anterior">
+                <ChevronLeftIcon width={18} height={18} />
+              </button>
+              <span className="agenda-relnav-label" onClick={goToday}>{navLabel("mes", selectedDate)}</span>
+              <button className="agenda-relnav-btn" onClick={goNext} aria-label="Próximo mês">
+                <ChevronRightIcon width={18} height={18} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="agenda-relnav">
+                <button className="agenda-relnav-btn" onClick={goPrevStrip} aria-label="Semana anterior">
+                  <ChevronLeftIcon width={18} height={18} />
+                </button>
+                <span className="agenda-relnav-label" onClick={goToday}>{dayLabel(selectedDate)}</span>
+                <button className="agenda-relnav-btn" onClick={goNextStrip} aria-label="Próxima semana">
+                  <ChevronRightIcon width={18} height={18} />
+                </button>
+              </div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={toIso(days[0])}
+                  className="day-strip"
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                >
+                  {days.map((d) => {
+                    const iso = toIso(d);
+                    const isSelected = iso === toIso(selectedDate);
+                    const isToday = iso === toIso(new Date());
+                    const hasSessions = (weekCountByDate[iso] || 0) > 0;
+                    const label = d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+                    return (
+                      <button
+                        key={iso}
+                        className={`week-day-cell${isSelected ? " active" : ""}${isToday ? " is-today" : ""}`}
+                        onClick={() => setSelectedDate(d)}
+                      >
+                        <span className="week-day-label">{label}</span>
+                        <span className="week-day-number">{d.getDate()}</span>
+                        <span className="week-day-indicators">{hasSessions && <span className="week-day-dot week-day-dot-sessions" />}</span>
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              </AnimatePresence>
+            </>
+          )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <button className="btn-secondary" style={{ padding: "0 10px", height: 36 }} onClick={goPrev} aria-label="Anterior">
-            <ChevronLeftIcon width={16} height={16} />
-          </button>
-          <button className="btn-secondary" style={{ padding: "0 14px", height: 36 }} onClick={goToday}>
-            {navLabel(viewMode, selectedDate)}
-          </button>
-          <button className="btn-secondary" style={{ padding: "0 10px", height: 36 }} onClick={goNext} aria-label="Próximo">
-            <ChevronRightIcon width={16} height={16} />
-          </button>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+          <div className="segmented">
+            {(["dia", "semana", "mes"] as const).map((m) => (
+              <span key={m} className={`segmented-item${viewMode === m ? " active" : ""}`} style={{ cursor: "pointer" }} onClick={() => setViewMode(m)}>
+                {m === "dia" ? "Dia" : m === "semana" ? "Semana" : "Mês"}
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button className="btn-secondary" style={{ padding: "0 10px", height: 36 }} onClick={goPrev} aria-label="Anterior">
+              <ChevronLeftIcon width={16} height={16} />
+            </button>
+            <button className="btn-secondary" style={{ padding: "0 14px", height: 36 }} onClick={goToday}>
+              {navLabel(viewMode, selectedDate)}
+            </button>
+            <button className="btn-secondary" style={{ padding: "0 10px", height: 36 }} onClick={goNext} aria-label="Próximo">
+              <ChevronRightIcon width={16} height={16} />
+            </button>
+          </div>
+          <input className="input" type="date" style={{ maxWidth: 160 }} value={toIso(selectedDate)} onChange={(e) => setSelectedDate(new Date(`${e.target.value}T12:00:00`))} />
         </div>
-        <input className="input" type="date" style={{ maxWidth: 160 }} value={toIso(selectedDate)} onChange={(e) => setSelectedDate(new Date(`${e.target.value}T12:00:00`))} />
-      </div>
+      )}
 
       {!isMobile && showForm && (
         <div className="card" style={{ marginBottom: 20, maxWidth: 480 }}>
@@ -608,38 +710,6 @@ export function Agenda() {
         {formFields}
       </FormSheet>
 
-      {isMobile && viewMode === "semana" && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={toIso(days[0])}
-            className="day-strip"
-            style={{ marginBottom: 20 }}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            {days.map((d) => {
-              const iso = toIso(d);
-              const isSelected = iso === toIso(selectedDate);
-              const isToday = iso === toIso(new Date());
-              const hasSessions = (weekCountByDate[iso] || 0) > 0;
-              const label = d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-              return (
-                <button key={iso} className={`week-day-cell${isSelected ? " active" : ""}`} onClick={() => setSelectedDate(d)}>
-                  <span className="week-day-label">{label}</span>
-                  <span className="week-day-number">{d.getDate()}</span>
-                  <span className="week-day-indicators">
-                    {isToday && <span className="week-day-dot week-day-dot-today" />}
-                    {hasSessions && <span className="week-day-dot week-day-dot-sessions" />}
-                  </span>
-                </button>
-              );
-            })}
-          </motion.div>
-        </AnimatePresence>
-      )}
-
       <AnimatePresence mode="wait">
         <motion.div key={contentKey} initial={fadeSlide.initial} animate={fadeSlide.animate} exit={fadeSlide.exit} transition={fadeSlide.transition}>
           {viewMode === "mes" ? (
@@ -648,12 +718,6 @@ export function Agenda() {
             renderHourGrid()
           ) : (
             <>
-              {viewMode === "dia" && (
-                <div className="text-h3" style={{ marginBottom: 14, textTransform: "capitalize" }}>
-                  {selectedDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-                </div>
-              )}
-
               {schedules === null && (
                 <div style={{ display: "grid", gap: 10 }}>
                   {[0, 1, 2].map((i) => (
