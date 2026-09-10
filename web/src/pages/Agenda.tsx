@@ -74,6 +74,16 @@ function dayLabel(date: Date): string {
   return `${weekday}, ${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Rotulo do periodo da semana que contem `date`: "08–14 set" ou "29 set – 05 out". */
+function weekRangeLabel(date: Date): string {
+  const w = weekDates(date);
+  const start = w[0];
+  const end = w[6];
+  const dd = (d: Date) => String(d.getDate()).padStart(2, "0");
+  if (start.getMonth() === end.getMonth()) return `${dd(start)}–${dd(end)} ${shortMonth(end).toLowerCase()}`;
+  return `${dd(start)} ${shortMonth(start).toLowerCase()} – ${dd(end)} ${shortMonth(end).toLowerCase()}`;
+}
+
 /** Rotulo do botao central da barra de navegacao. */
 function navLabel(mode: ViewMode, date: Date): string {
   if (mode === "dia") return relativeDayLabel(date) || `${String(date.getDate()).padStart(2, "0")} ${shortMonth(date)}`;
@@ -400,6 +410,103 @@ export function Agenda() {
     );
   }
 
+  // ---- Cartao de sessao (mobile, reutilizado por Dia e Semana) ----
+  function sessionCard(s: ScheduleItem) {
+    return (
+      <motion.div
+        key={s.id}
+        layout
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+        className="card agenda-card"
+        style={{ borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}` }}
+      >
+        <div className="agenda-card-top">
+          <div className="agenda-time">{s.time.slice(0, 5)}</div>
+          <div className="agenda-card-main">
+            <div className="agenda-patient-name">{s.patient_name}</div>
+            <div className="agenda-procedure">{s.procedure}</div>
+          </div>
+          <button className="mobile-icon-btn agenda-item-action-btn" onClick={() => setActionsFor(s)} aria-label="Ações da sessão">
+            <MoreVerticalIcon width={16} height={16} />
+          </button>
+        </div>
+        <div className="agenda-status-row">
+          <span className={`status-chip status-chip-${STATUS_COLOR[s.status]}`}>
+            <span className="status-dot" />
+            {STATUS_LABEL[s.status]}
+          </span>
+        </div>
+      </motion.div>
+    );
+  }
+
+  /** View "Dia" no mobile: foco em um unico dia. */
+  function renderMobileDay() {
+    return (
+      <>
+        <div className="agenda-day-header">
+          {capitalize(selectedDate.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }))}
+        </div>
+        {dayItems.length === 0 ? (
+          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: "easeOut" }}>
+            <EmptyState icon={<CalendarIcon width={20} height={20} />} title="Agenda livre" description="Nenhuma sessão agendada para este dia." />
+          </motion.div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <AnimatePresence mode="popLayout">{dayItems.map((s) => sessionCard(s))}</AnimatePresence>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  /** View "Semana" no mobile: a semana inteira, agrupada por dia. */
+  function renderMobileWeek() {
+    const todayIso = toIso(new Date());
+    const bySide: Record<string, ScheduleItem[]> = {};
+    for (const s of schedules || []) (bySide[s.date] ||= []).push(s);
+    const weekTotal = days.reduce((n, d) => n + (bySide[toIso(d)]?.length || 0), 0);
+
+    if (weekTotal === 0) {
+      return (
+        <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: "easeOut" }}>
+          <EmptyState icon={<CalendarIcon width={20} height={20} />} title="Semana livre" description="Nenhuma sessão agendada nesta semana." />
+        </motion.div>
+      );
+    }
+
+    return (
+      <div className="agenda-week-list">
+        {days.map((d) => {
+          const iso = toIso(d);
+          const items = (bySide[iso] || []).slice().sort((a, b) => a.time.localeCompare(b.time));
+          const isToday = iso === todayIso;
+          return (
+            <div key={iso} className="agenda-daygroup">
+              <div className={`agenda-daygroup-header${isToday ? " is-today" : ""}`}>
+                <span className="dg-weekday">{d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")}</span>
+                <span className="dg-date">
+                  {String(d.getDate()).padStart(2, "0")}/{String(d.getMonth() + 1).padStart(2, "0")}
+                </span>
+                {items.length > 0 && <span className="dg-count">{items.length}</span>}
+              </div>
+              {items.length === 0 ? (
+                <div className="agenda-daygroup-empty">Sem atendimentos</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <AnimatePresence mode="popLayout">{items.map((s) => sessionCard(s))}</AnimatePresence>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   function goPrev() {
     setSelectedDate(shiftDate(selectedDate, viewMode, -1));
   }
@@ -637,11 +744,21 @@ export function Agenda() {
           ) : (
             <>
               <div className="agenda-relnav">
-                <button className="agenda-relnav-btn" onClick={goPrevStrip} aria-label="Semana anterior">
+                <button
+                  className="agenda-relnav-btn"
+                  onClick={viewMode === "semana" ? goPrevStrip : goPrev}
+                  aria-label={viewMode === "semana" ? "Semana anterior" : "Dia anterior"}
+                >
                   <ChevronLeftIcon width={18} height={18} />
                 </button>
-                <span className="agenda-relnav-label" onClick={goToday}>{dayLabel(selectedDate)}</span>
-                <button className="agenda-relnav-btn" onClick={goNextStrip} aria-label="Próxima semana">
+                <span className="agenda-relnav-label" onClick={goToday}>
+                  {viewMode === "semana" ? weekRangeLabel(selectedDate) : dayLabel(selectedDate)}
+                </span>
+                <button
+                  className="agenda-relnav-btn"
+                  onClick={viewMode === "semana" ? goNextStrip : goNext}
+                  aria-label={viewMode === "semana" ? "Próxima semana" : "Próximo dia"}
+                >
                   <ChevronRightIcon width={18} height={18} />
                 </button>
               </div>
@@ -716,58 +833,16 @@ export function Agenda() {
             <MonthGrid monthDate={selectedDate} schedules={schedules || []} onSelectDay={selectDayFromMonth} />
           ) : !isMobile ? (
             renderHourGrid()
+          ) : schedules === null ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skeleton" style={{ height: 76, borderRadius: 12 }} />
+              ))}
+            </div>
+          ) : viewMode === "semana" ? (
+            renderMobileWeek()
           ) : (
-            <>
-              {schedules === null && (
-                <div style={{ display: "grid", gap: 10 }}>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="skeleton" style={{ height: 76, borderRadius: 12 }} />
-                  ))}
-                </div>
-              )}
-
-              {schedules !== null && dayItems.length === 0 && (
-                <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: "easeOut" }}>
-                  <EmptyState icon={<CalendarIcon width={20} height={20} />} title="Agenda livre" description="Nenhuma sessão agendada para este dia." />
-                </motion.div>
-              )}
-
-              {dayItems.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <AnimatePresence mode="popLayout">
-                    {dayItems.map((s) => (
-                      <motion.div
-                        key={s.id}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.22, ease: "easeOut" }}
-                        className="card agenda-card"
-                        style={{ borderLeft: `4px solid ${treatmentTypes.find((t) => t.name === s.procedure)?.color || "transparent"}` }}
-                      >
-                        <div className="agenda-card-top">
-                          <div className="agenda-time">{s.time.slice(0, 5)}</div>
-                          <div className="agenda-card-main">
-                            <div className="agenda-patient-name">{s.patient_name}</div>
-                            <div className="agenda-procedure">{s.procedure}</div>
-                          </div>
-                          <button className="mobile-icon-btn agenda-item-action-btn" onClick={() => setActionsFor(s)} aria-label="Ações da sessão">
-                            <MoreVerticalIcon width={16} height={16} />
-                          </button>
-                        </div>
-                        <div className="agenda-status-row">
-                          <span className={`status-chip status-chip-${STATUS_COLOR[s.status]}`}>
-                            <span className="status-dot" />
-                            {STATUS_LABEL[s.status]}
-                          </span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
-            </>
+            renderMobileDay()
           )}
         </motion.div>
       </AnimatePresence>
