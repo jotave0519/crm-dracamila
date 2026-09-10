@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { layoutDayEvents } from "../lib/calendarLayout";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { FormSheet } from "../components/FormSheet";
@@ -16,6 +17,7 @@ interface ScheduleItem {
   date: string;
   time: string;
   status: "Agendado" | "Confirmado" | "Cancelado" | "Concluido" | "Faltou";
+  duration_minutes?: number | null;
 }
 
 interface TreatmentType {
@@ -116,6 +118,18 @@ const STATUS_COLOR: Record<string, string> = { Agendado: "blue", Confirmado: "ye
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 const EMPTY_FORM = { patientId: "", newPatientName: "", newPatientPhone: "", procedure: "", treatmentPlanId: "", time: "09:00" };
+
+// Grade de horas (views Dia e Semana no desktop/tablet).
+const HOUR_HEIGHT = 60;
+const MIN_EVENT_HEIGHT = 44;
+const EVENT_GAP = 3;
+const DEFAULT_DURATION_MINUTES = 30;
+
+/** Fundo translucido do evento a partir da cor do tipo de atendimento (hex #rrggbb). */
+function eventColors(hex: string | undefined): { bg: string; border: string } {
+  if (hex && /^#[0-9a-fA-F]{6}$/.test(hex)) return { bg: `${hex}1f`, border: hex };
+  return { bg: "var(--accent-bg)", border: "var(--accent)" };
+}
 
 const fadeSlide = {
   initial: { opacity: 0, y: 10 },
@@ -228,6 +242,141 @@ export function Agenda() {
 
   const weekCountByDate: Record<string, number> = {};
   for (const s of schedules || []) weekCountByDate[s.date] = (weekCountByDate[s.date] || 0) + 1;
+
+  // ---- Grade de horas (Dia/Semana no desktop/tablet) ----
+  const gridScrollRef = useRef<HTMLDivElement>(null);
+  const gridDays = viewMode === "semana" ? days : [selectedDate];
+  const gridDayStrs = gridDays.map((d) => toIso(d));
+  const gridItems = (schedules || []).filter((s) => gridDayStrs.includes(s.date));
+  const startHour = Math.max(
+    6,
+    Math.min(7, ...gridItems.map((s) => parseInt(s.time.slice(0, 2), 10)))
+  );
+  const endHour = Math.min(
+    23,
+    Math.max(
+      20,
+      ...gridItems.map((s) => {
+        const [h, m] = s.time.split(":").map(Number);
+        return Math.ceil((h * 60 + m + (s.duration_minutes || DEFAULT_DURATION_MINUTES)) / 60);
+      })
+    )
+  );
+  const hourCount = Math.max(1, endHour - startHour);
+
+  // Ao abrir/trocar de dia, rola a grade pra 30min antes do primeiro
+  // compromisso (ou do horario atual, o que vier antes).
+  useEffect(() => {
+    if (isMobile || viewMode === "mes") return;
+    const el = gridScrollRef.current;
+    if (!el) return;
+    const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+    const firstEventMin = gridItems.length
+      ? Math.min(...gridItems.map((s) => parseInt(s.time.slice(0, 2), 10) * 60 + parseInt(s.time.slice(3, 5), 10)))
+      : 8 * 60;
+    const anchor = Math.min(firstEventMin, nowMin) - 30;
+    const t = setTimeout(() => {
+      el.scrollTop = Math.max(0, (anchor - startHour * 60) * (HOUR_HEIGHT / 60));
+    }, 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, isMobile, toIso(selectedDate), gridItems.length]);
+
+  function renderDayColumn(d: Date) {
+    const dateStr = toIso(d);
+    const isToday = dateStr === toIso(new Date());
+    const list = (schedules || []).filter((s) => s.date === dateStr);
+    const positioned = layoutDayEvents(
+      list.map((s) => ({ ...s, durationMinutes: s.duration_minutes || DEFAULT_DURATION_MINUTES })),
+      HOUR_HEIGHT / 60,
+      startHour,
+      MIN_EVENT_HEIGHT,
+      EVENT_GAP
+    );
+    const now = new Date();
+    const nowTop = isToday ? (now.getHours() * 60 + now.getMinutes() - startHour * 60) * (HOUR_HEIGHT / 60) : -1;
+
+    return (
+      <div
+        key={dateStr}
+        className="agenda-day-col"
+        style={{
+          height: hourCount * HOUR_HEIGHT,
+          backgroundImage: `repeating-linear-gradient(var(--surface), var(--surface) ${HOUR_HEIGHT - 1}px, var(--border-soft) ${HOUR_HEIGHT}px)`,
+        }}
+      >
+        {isToday && nowTop >= 0 && nowTop <= hourCount * HOUR_HEIGHT && (
+          <div className="agenda-now-line" style={{ top: nowTop }}>
+            <span className="agenda-now-dot" />
+          </div>
+        )}
+        {schedules === null && (
+          <div style={{ padding: 8, display: "grid", gap: 6 }}>
+            <div className="skeleton" style={{ height: 40, borderRadius: 8 }} />
+            <div className="skeleton" style={{ height: 40, borderRadius: 8 }} />
+          </div>
+        )}
+        {positioned.map(({ item, top, height, left, width }) => {
+          const c = eventColors(treatmentTypes.find((t) => t.name === item.procedure)?.color);
+          return (
+            <div
+              key={item.id}
+              className="agenda-event"
+              onClick={() => setActionsFor(item)}
+              style={{
+                top,
+                height,
+                left: `calc(${left}% + 2px)`,
+                width: `calc(${width}% - 4px)`,
+                background: c.bg,
+                borderLeft: `3px solid ${c.border}`,
+                color: "var(--text)",
+              }}
+            >
+              <span className="agenda-event-status" style={{ background: `var(--${STATUS_COLOR[item.status] || "neutral"})` }} />
+              <div className="agenda-event-inner">
+                <div className="agenda-event-time">{item.time.slice(0, 5)}</div>
+                {height >= 28 && <div className="agenda-event-name">{item.patient_name}</div>}
+                {height >= 46 && <div className="agenda-event-procedure">{item.procedure}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  function renderHourGrid() {
+    const hours = Array.from({ length: hourCount }, (_, i) => startHour + i);
+    return (
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="agenda-grid-head">
+          <div className="agenda-hour-col" style={{ paddingTop: 0 }} />
+          {gridDays.map((d) => {
+            const isToday = toIso(d) === toIso(new Date());
+            return (
+              <div key={toIso(d)} className="agenda-grid-day">
+                <div className={`agenda-grid-day-label${isToday ? " is-today" : ""}`}>
+                  {d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")}
+                </div>
+                <div className={`agenda-grid-day-number${isToday ? " is-today" : ""}`}>{d.getDate()}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="agenda-grid-scroll" ref={gridScrollRef} style={{ maxHeight: "calc(100vh - 290px)" }}>
+          <div className="agenda-hour-col">
+            {hours.map((h) => (
+              <div key={h} style={{ height: HOUR_HEIGHT }}>
+                <span className="agenda-hour-label">{String(h).padStart(2, "0")}:00</span>
+              </div>
+            ))}
+          </div>
+          {gridDays.map((d) => renderDayColumn(d))}
+        </div>
+      </div>
+    );
+  }
 
   function goPrev() {
     setSelectedDate(shiftDate(selectedDate, viewMode, -1));
@@ -459,7 +608,7 @@ export function Agenda() {
         {formFields}
       </FormSheet>
 
-      {viewMode === "semana" && (
+      {isMobile && viewMode === "semana" && (
         <AnimatePresence mode="wait">
           <motion.div
             key={toIso(days[0])}
@@ -495,6 +644,8 @@ export function Agenda() {
         <motion.div key={contentKey} initial={fadeSlide.initial} animate={fadeSlide.animate} exit={fadeSlide.exit} transition={fadeSlide.transition}>
           {viewMode === "mes" ? (
             <MonthGrid monthDate={selectedDate} schedules={schedules || []} onSelectDay={selectDayFromMonth} />
+          ) : !isMobile ? (
+            renderHourGrid()
           ) : (
             <>
               {viewMode === "dia" && (
@@ -503,7 +654,15 @@ export function Agenda() {
                 </div>
               )}
 
-              {dayItems.length === 0 && (
+              {schedules === null && (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="skeleton" style={{ height: 76, borderRadius: 12 }} />
+                  ))}
+                </div>
+              )}
+
+              {schedules !== null && dayItems.length === 0 && (
                 <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.25, ease: "easeOut" }}>
                   <EmptyState icon={<CalendarIcon width={20} height={20} />} title="Agenda livre" description="Nenhuma sessão agendada para este dia." />
                 </motion.div>
