@@ -1,7 +1,8 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangleIcon, BellIcon, ChevronDownIcon, ChevronRightIcon } from "../components/icons";
+import { AlertTriangleIcon, BellIcon, ChevronDownIcon, ChevronRightIcon, TrendingDownIcon, TrendingUpIcon } from "../components/icons";
 import { MonthlyBarChart } from "../components/MonthlyBarChart";
+import { RevenueAreaChart } from "../components/RevenueAreaChart";
 import { SkeletonKpiGrid } from "../components/Skeleton";
 import { useClinic } from "../context/ClinicContext";
 import { useCountUp } from "../hooks/useCountUp";
@@ -65,6 +66,10 @@ function formatMoney(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function capitalizeFirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 function formatShortDate(dateStr: string): string {
   return new Date(`${dateStr}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" }).replace(".", "");
 }
@@ -123,11 +128,67 @@ function KpiGroup({ title, accent, items }: { title: string; accent: string; ite
 function HighlightCard({ label, value, sub, onClick }: { label: string; value: string; sub?: string; onClick?: () => void }) {
   const Tag = onClick ? "button" : "div";
   return (
-    <Tag className="card" onClick={onClick} style={{ textAlign: "left", cursor: onClick ? "pointer" : undefined, padding: "22px 20px" }}>
-      <div style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 8 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>{sub}</div>}
+    <Tag className="card" onClick={onClick} style={{ textAlign: "left", cursor: onClick ? "pointer" : undefined, padding: "20px 18px" }}>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>{label}</div>
+      <div style={{ fontSize: 25, fontWeight: 700, lineHeight: 1.05, letterSpacing: "-0.02em" }}>{value}</div>
+      {sub && (
+        <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sub}</div>
+      )}
     </Tag>
+  );
+}
+
+/** Rotulo de secao (caption discreto) que dá ritmo/hierarquia ao dashboard. */
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-caption" style={{ margin: "4px 2px 10px" }}>
+      {children}
+    </div>
+  );
+}
+
+/** Card de destaque do faturamento: numero grande + tendencia + grafico de area. */
+function RevenueHeroCard({ current, byMonth }: { current: number; byMonth: ChartMonth[] }) {
+  const prev = byMonth.length >= 2 ? byMonth[byMonth.length - 2].value : 0;
+  const last = byMonth.length >= 1 ? byMonth[byMonth.length - 1].value : current;
+  const delta = prev > 0 ? ((last - prev) / prev) * 100 : null;
+  const up = (delta ?? 0) >= 0;
+
+  return (
+    <div className="card" style={{ padding: "20px 18px 8px" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div className="text-caption" style={{ marginBottom: 8 }}>
+            Faturamento · últimos 12 meses
+          </div>
+          <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1 }}>{formatMoney(current)}</div>
+        </div>
+        {delta !== null && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              flexShrink: 0,
+              marginTop: 4,
+              fontSize: 12,
+              fontWeight: 600,
+              color: up ? "var(--green)" : "var(--red)",
+              background: up ? "var(--green-bg)" : "var(--red-bg)",
+              padding: "4px 9px",
+              borderRadius: 999,
+            }}
+          >
+            {up ? <TrendingUpIcon width={13} height={13} /> : <TrendingDownIcon width={13} height={13} />}
+            {up ? "+" : ""}
+            {delta.toFixed(0)}%
+          </span>
+        )}
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <RevenueAreaChart data={byMonth} height={140} formatValue={formatMoney} />
+      </div>
+    </div>
   );
 }
 
@@ -247,6 +308,9 @@ export function Dashboard() {
 
   return (
     <div>
+      <div className="text-caption" style={{ marginBottom: 6 }}>
+        {capitalizeFirst(new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" }))}
+      </div>
       <h1 className="page-title">
         {greeting()}, <span style={{ fontStyle: "italic" }}>{professionalName}</span>
       </h1>
@@ -282,29 +346,35 @@ export function Dashboard() {
         </button>
       )}
 
-      <div className="kpi-grid" style={{ gap: 16, marginBottom: 24 }}>
-        <HighlightCard label="Pacientes atendidos hoje" value={String(attendedToday)} sub={`de ${data.todayAppointments.length} agendados`} />
+      <SectionLabel>Hoje</SectionLabel>
+      <div className="kpi-grid" style={{ gap: 14, marginBottom: 16 }}>
+        <HighlightCard label="Atendidos hoje" value={String(attendedToday)} sub={`de ${data.todayAppointments.length} agendados`} />
         <HighlightCard
           label="Próximo atendimento"
           value={data.nextAppointment ? data.nextAppointment.time.slice(0, 5) : "—"}
           sub={data.nextAppointment ? data.nextAppointment.patient_name : "Nenhum agendado"}
         />
-        <HighlightCard label="Aguardando confirmação" value={String(awaitingConfirmation)} sub="sessões de hoje" />
+        <HighlightCard label="A confirmar" value={String(awaitingConfirmation)} sub="sessões de hoje" />
         <HighlightCard label="Receita do dia" value={formatMoney(revenueToday)} />
       </div>
 
       <ListCard title="Agenda de hoje" onSeeAll={() => navigate("/agenda")}>
         {data.todayAppointments.length === 0 && <div className="empty-state">Nenhuma sessão para hoje.</div>}
         {data.todayAppointments.map((a) => (
-          <div key={a.id} style={{ display: "flex", gap: 14, padding: "14px 6px", alignItems: "center", borderTop: "1px solid var(--border-soft)" }}>
-            <div style={{ textAlign: "right", width: 46, flex: "0 0 46px", fontSize: 13, fontWeight: 600 }}>{a.time.slice(0, 5)}</div>
+          <div key={a.id} className="dash-appt-row">
+            <div style={{ textAlign: "right", width: 44, flex: "0 0 44px", fontSize: 13, fontWeight: 700, color: "var(--text-muted)" }}>{a.time.slice(0, 5)}</div>
             <div style={{ width: 3, alignSelf: "stretch", borderRadius: 3, background: "var(--accent)" }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 500 }}>{a.patient_name}</div>
-              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{a.procedure}</div>
+            <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.patient_name}</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.procedure}</div>
             </div>
-            <span className={`badge ${a.status === "Concluido" ? "badge-green" : a.status === "Faltou" ? "badge-red" : a.status === "Confirmado" ? "badge-yellow" : "badge-blue"}`}>{a.status}</span>
-            <div style={{ display: "flex", gap: 6 }}>
+            <span
+              className={`badge ${a.status === "Concluido" ? "badge-green" : a.status === "Faltou" ? "badge-red" : a.status === "Confirmado" ? "badge-yellow" : "badge-blue"}`}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              {a.status}
+            </span>
+            <div className="dash-appt-actions">
               <button className="btn-secondary" style={{ fontSize: 11.5, padding: "5px 10px" }} onClick={() => navigate(`/pacientes/${a.patient_id}`)}>
                 Ver ficha
               </button>
@@ -316,10 +386,59 @@ export function Dashboard() {
         ))}
       </ListCard>
 
-      <div style={{ height: 24 }} />
+      <div style={{ marginTop: 28 }}>
+        <SectionLabel>Financeiro</SectionLabel>
+        <RevenueHeroCard current={data.kpis.revenueThisMonth} byMonth={data.charts.revenueByMonth} />
+        <div className="grid-responsive-3" style={{ gap: 14, marginTop: 14 }}>
+          <div className="card">
+            <div className="kpi-label">Receita do mês</div>
+            <div className="kpi-value">{formatMoney(data.kpis.revenueThisMonth)}</div>
+          </div>
+          <div className="card">
+            <div className="kpi-label">Despesas do mês</div>
+            <div className="kpi-value">{formatMoney(data.kpis.expensesThisMonth)}</div>
+          </div>
+          <div className="card">
+            <div className="kpi-label">Lucro do mês</div>
+            <div className="kpi-value" style={{ color: data.kpis.profitThisMonth < 0 ? "var(--red)" : "var(--green)" }}>
+              {formatMoney(data.kpis.profitThisMonth)}
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <div className="grid-responsive-3" style={{ gap: 20, marginBottom: 24 }}>
-        <ListCard title="Próximos retornos" onSeeAll={() => navigate("/agenda")}>
+      {data.kpis.lowStockCount > 0 && (
+        <button
+          className="card"
+          onClick={() => navigate("/estoque")}
+          style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", marginTop: 14, borderLeft: "3px solid var(--red)" }}
+        >
+          <span
+            style={{
+              width: 32,
+              height: 32,
+              flex: "0 0 32px",
+              borderRadius: 9,
+              background: "var(--red-bg)",
+              color: "var(--red)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <AlertTriangleIcon width={16} height={16} />
+          </span>
+          <span style={{ flex: 1, fontSize: 13 }}>
+            <strong>Estoque</strong> — {data.kpis.lowStockCount} produto{data.kpis.lowStockCount > 1 ? "s" : ""} com estoque baixo
+          </span>
+          <ChevronRightIcon width={15} height={15} style={{ color: "var(--text-faint)" }} />
+        </button>
+      )}
+
+      <div style={{ marginTop: 28 }}>
+        <SectionLabel>Acompanhamento</SectionLabel>
+        <div className="grid-responsive-3" style={{ gap: 14 }}>
+          <ListCard title="Próximos retornos" onSeeAll={() => navigate("/agenda")}>
           {data.upcomingReturns.length === 0 && <div className="empty-state">Nenhum retorno agendado.</div>}
           {data.upcomingReturns.map((s) => (
             <div key={s.id} style={{ padding: "11px 4px", borderTop: "1px solid var(--border-soft)" }}>
@@ -368,59 +487,13 @@ export function Dashboard() {
               </button>
             </div>
           ))}
-        </ListCard>
-      </div>
-
-      <div className="card" style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 24 }}>
-        <div>
-          <div className="kpi-label" style={{ marginBottom: 4 }}>
-            Receita do mês
-          </div>
-          <div style={{ fontSize: 17, fontWeight: 600 }}>{formatMoney(data.kpis.revenueThisMonth)}</div>
-        </div>
-        <div>
-          <div className="kpi-label" style={{ marginBottom: 4 }}>
-            Despesas
-          </div>
-          <div style={{ fontSize: 17, fontWeight: 600 }}>{formatMoney(data.kpis.expensesThisMonth)}</div>
-        </div>
-        <div>
-          <div className="kpi-label" style={{ marginBottom: 4 }}>
-            Lucro
-          </div>
-          <div style={{ fontSize: 17, fontWeight: 600, color: data.kpis.profitThisMonth < 0 ? "var(--red)" : "var(--green)" }}>{formatMoney(data.kpis.profitThisMonth)}</div>
+          </ListCard>
         </div>
       </div>
 
-      {data.kpis.lowStockCount > 0 && (
-        <button
-          className="card"
-          onClick={() => navigate("/estoque")}
-          style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", marginBottom: 24, borderLeft: "3px solid var(--red)" }}
-        >
-          <span
-            style={{
-              width: 32,
-              height: 32,
-              flex: "0 0 32px",
-              borderRadius: 9,
-              background: "var(--red-bg)",
-              color: "var(--red)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <AlertTriangleIcon width={16} height={16} />
-          </span>
-          <span style={{ flex: 1, fontSize: 13 }}>
-            <strong>Estoque</strong> — {data.kpis.lowStockCount} produto{data.kpis.lowStockCount > 1 ? "s" : ""} com estoque baixo
-          </span>
-          <ChevronRightIcon width={15} height={15} style={{ color: "var(--text-faint)" }} />
-        </button>
-      )}
-
-      <CollapsibleSection title="Resumo da Clínica">
+      <div style={{ marginTop: 28 }}>
+        <SectionLabel>Visão geral</SectionLabel>
+        <CollapsibleSection title="Resumo da Clínica">
         <KpiGroup
           title="Atendimento"
           accent="var(--accent)"
@@ -461,10 +534,7 @@ export function Dashboard() {
           </ListCard>
         </div>
 
-        <div className="grid-responsive-2" style={{ gap: 20 }}>
-          <ChartCard title="Receita mensal">
-            <MonthlyBarChart data={data.charts.revenueByMonth} color="#008300" formatValue={formatMoney} ariaLabel="Receita por mês" />
-          </ChartCard>
+        <div className="grid-responsive-2" style={{ gap: 14 }}>
           <ChartCard title="Sessões por mês">
             <MonthlyBarChart data={data.charts.sessionsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Sessões concluídas por mês" />
           </ChartCard>
@@ -477,18 +547,19 @@ export function Dashboard() {
         </div>
       </CollapsibleSection>
 
-      <ListCard title="Últimos atendimentos" onSeeAll={() => navigate("/agenda")}>
-        {data.recentSessions.length === 0 && <div className="empty-state">Nenhum atendimento realizado ainda.</div>}
-        {data.recentSessions.map((s) => (
-          <div key={s.id} style={{ padding: "11px 4px", borderTop: "1px solid var(--border-soft)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-              <span style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</span>
-              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(`${s.date}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+        <ListCard title="Últimos atendimentos" onSeeAll={() => navigate("/agenda")}>
+          {data.recentSessions.length === 0 && <div className="empty-state">Nenhum atendimento realizado ainda.</div>}
+          {data.recentSessions.map((s) => (
+            <div key={s.id} style={{ padding: "11px 4px", borderTop: "1px solid var(--border-soft)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <span style={{ fontSize: 13.5, fontWeight: 600 }}>{s.patient_name}</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(`${s.date}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{s.procedure}</div>
             </div>
-            <div style={{ fontSize: 12.5, color: "var(--text-muted)" }}>{s.procedure}</div>
-          </div>
-        ))}
-      </ListCard>
+          ))}
+        </ListCard>
+      </div>
     </div>
   );
 }

@@ -42,3 +42,5 @@ export const PackageIcon = (props: SVGProps<SVGSVGElement>) => (
 export const InboxIcon = (props: SVGProps<SVGSVGElement>) => (
   <Icon {...props} d="M22 12h-6l-2 3h-4l-2-3H2M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1Z" />
 );
+export const TrendingUpIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="m3 17 6-6 4 4 8-8M21 7v6M21 7h-6" />;
+export const TrendingDownIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...props} d="m3 7 6 6 4-4 8 8M21 17v-6M21 17h-6" />;

@@ -1101,6 +1101,32 @@ a.card:active {
   transform: scale(0.94);
 }
 
+/* Linha "Agenda de hoje" no Dashboard: uma linha so no desktop; no mobile os
+   botoes de acao descem pra segunda linha em vez de estourar a largura. */
+.dash-appt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  padding: 13px 4px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.dash-appt-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 620px) {
+  .dash-appt-actions {
+    flex: 1 1 100%;
+  }
+  .dash-appt-actions .btn-secondary {
+    flex: 1;
+  }
+}
+
 /* Segmented ocupando a largura toda no mobile (Dia / Semana / Mes). */
 .segmented-full {
   display: grid;
