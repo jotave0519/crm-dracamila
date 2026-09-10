@@ -19,6 +19,7 @@ export function EmptyState({ title, description, actionLabel, onAction, icon }: 
       {description && <div className="empty-state-desc">{description}</div>}
       {actionLabel && onAction && (
         <button className="btn" onClick={onAction} style={{ marginTop: 14 }}>
+          <PlusIcon width={16} height={16} />
           {actionLabel}
         </button>
       )}

@@ -61,20 +61,20 @@ export function Relatorios() {
         <>
           <div className="kpi-grid" style={{ marginBottom: 24 }}>
             <div className="card">
+              <div className="kpi-label">Faturamento</div>
               <div className="kpi-value">{formatMoney(data.revenue)}</div>
-              <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Faturamento</div>
             </div>
             <div className="card">
+              <div className="kpi-label">Pacientes ativos</div>
               <div className="kpi-value">{data.activePatients}</div>
-              <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Pacientes ativos</div>
             </div>
             <div className="card">
+              <div className="kpi-label">Pacientes novos no período</div>
               <div className="kpi-value">{data.newPatients}</div>
-              <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Pacientes novos no período</div>
             </div>
             <div className="card">
+              <div className="kpi-label">Sessões no período</div>
               <div className="kpi-value">{data.totalSessions}</div>
-              <div className="kpi-label" style={{ marginTop: 6, marginBottom: 0 }}>Sessões no período</div>
             </div>
           </div>
 

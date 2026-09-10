@@ -414,16 +414,16 @@ export function Estoque() {
 
       {items !== null && items.length > 0 && !isMobile && (
         <div className="card" style={{ padding: 0, overflowX: "auto" }}>
-          <table className="table">
+          <table className="table" style={{ minWidth: 1040 }}>
             <thead>
               <tr>
                 <th>Produto</th>
                 <th>Categoria</th>
-                <th>Quantidade</th>
-                <th>Mínimo</th>
-                <th>Valor unitário</th>
+                <th style={{ whiteSpace: "nowrap" }}>Qtd.</th>
+                <th style={{ whiteSpace: "nowrap" }}>Mínimo</th>
+                <th style={{ whiteSpace: "nowrap" }}>Valor unit.</th>
                 <th>Fornecedor</th>
-                <th>Última movimentação</th>
+                <th style={{ whiteSpace: "nowrap" }}>Últ. movimentação</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -451,23 +451,25 @@ export function Estoque() {
                       )}
                     </td>
                     <td>
-                      <span className={`badge ${status.badge}`}>{status.label}</span>
+                      <span className={`badge ${status.badge}`} style={{ whiteSpace: "nowrap" }}>
+                        {status.label}
+                      </span>
                     </td>
                     <td>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => openMovement(item)}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "nowrap" }}>
+                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 9px", height: "auto" }} onClick={() => openMovement(item)}>
                           Movimentar
                         </button>
-                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => openHistory(item)}>
+                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 9px", height: "auto" }} onClick={() => openHistory(item)}>
                           Histórico
                         </button>
-                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => startEdit(item)}>
+                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 9px", height: "auto" }} onClick={() => startEdit(item)}>
                           Editar
                         </button>
-                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => handleDuplicate(item)}>
+                        <button className="btn-secondary" style={{ fontSize: 11.5, padding: "4px 9px", height: "auto" }} onClick={() => handleDuplicate(item)}>
                           Duplicar
                         </button>
-                        <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 8px" }} onClick={() => setPendingDelete(item)}>
+                        <button className="btn-danger" style={{ fontSize: 11.5, padding: "4px 9px", height: "auto" }} onClick={() => setPendingDelete(item)}>
                           Excluir
                         </button>
                       </div>

@@ -518,7 +518,7 @@ export function Financeiro() {
         <EmptyState
           title="Nenhuma movimentação"
           description={hasExtraFilters ? "Nenhum resultado com esses filtros." : "Nenhuma movimentação registrada nesse período."}
-          actionLabel="+ Nova movimentação"
+          actionLabel="Nova movimentação"
           onAction={startCreate}
         />
       )}

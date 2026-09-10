@@ -344,11 +344,13 @@ a.card:active {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  height: 40px;
-  padding: 0 16px;
+  /* padding-based (nao height fixo) pra que overrides inline de padding
+     menor - botoes compactos em tabelas/listas - continuem funcionando. */
+  padding: 11px 16px;
   border-radius: 10px;
   font-size: 13.5px;
   font-weight: 600;
+  line-height: 1.1;
   letter-spacing: -0.005em;
   white-space: nowrap;
   transition: transform 0.12s ease, opacity 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
