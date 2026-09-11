@@ -1,15 +1,60 @@
 import * as googleCalendar from "../integrations/googleCalendarClient";
 import { CalendarUnavailableError } from "../integrations/googleCalendarClient";
 import * as scheduleRepository from "../repositories/scheduleRepository";
+import * as businessHoursService from "./businessHoursService";
 import { Schedule } from "../types";
 import { AppError } from "../utils/appError";
 import { logger } from "../utils/logger";
+import { withTimeout } from "../utils/retry";
 import { toSaoPauloDateTimeParts } from "../utils/timezone";
 
 const SCOPE = "schedulingService";
+const DEFAULT_SLOT_MINUTES = 30;
+// Best-effort: o Google so ENRIQUECE a disponibilidade (pega bloqueios criados
+// direto no Calendar, fora do sistema). Um Google lento/fora do ar nunca pode
+// travar a IA do WhatsApp por mais que esse tempo - segue so com a agenda local.
+const GOOGLE_ENRICHMENT_TIMEOUT_MS = 6_000;
 
-export async function checkAvailability(date: string, durationMinutes?: number): Promise<string[]> {
-  return googleCalendar.checkAvailability(date, durationMinutes);
+function todayIsoDate(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+/**
+ * A tabela local `schedules` e a FONTE PRIMARIA da disponibilidade - sempre
+ * disponivel, nunca depende do Google. O Google Calendar entra so como
+ * enriquecimento best-effort (pega compromissos criados direto por la, fora
+ * do sistema); se ele falhar ou demorar, seguimos normalmente so com os
+ * dados locais em vez de derrubar o agendamento inteiro.
+ */
+export async function checkAvailability(date: string, durationMinutes: number = DEFAULT_SLOT_MINUTES): Promise<string[]> {
+  const { enabled, slots } = await businessHoursService.getDaySlots(date);
+  if (!enabled) return [];
+
+  const localSchedules = await scheduleRepository.findAllByDate(date);
+  const busy: { start: Date; end: Date }[] = localSchedules.map((s) => {
+    const start = new Date(`${s.date}T${s.time}-03:00`);
+    return { start, end: new Date(start.getTime() + (s.duration_minutes ?? durationMinutes) * 60_000) };
+  });
+
+  try {
+    const googleBusy = await withTimeout(() => googleCalendar.fetchBusyBlocksForDay(date), GOOGLE_ENRICHMENT_TIMEOUT_MS);
+    busy.push(...googleBusy);
+  } catch (err) {
+    logger.warn(SCOPE, "Google Calendar indisponivel/lento ao consultar bloqueios externos - seguindo so com a agenda interna", { date });
+  }
+
+  const isToday = date === todayIsoDate();
+  const minStartMs = Date.now() + 20 * 60_000;
+
+  const results: string[] = [];
+  for (const slotTime of slots) {
+    const start = new Date(`${date}T${slotTime}:00-03:00`);
+    if (isToday && start.getTime() < minStartMs) continue;
+    const end = new Date(start.getTime() + durationMinutes * 60_000);
+    const overlaps = busy.some((b) => start.getTime() < b.end.getTime() && end.getTime() > b.start.getTime());
+    if (!overlaps) results.push(start.toISOString());
+  }
+  return results;
 }
 
 /** Quando a data pedida nao tem vaga, procura o proximo dia (ate maxDaysForward) com horarios livres. */
@@ -120,8 +165,29 @@ export async function cancelAppointment(scheduleId: string): Promise<Schedule> {
   return scheduleRepository.updateScheduleStatus(scheduleId, "Cancelado");
 }
 
+// Evita que duas tentativas de sincronizacao da MESMA sessao rodem ao mesmo
+// tempo (ex: job automatico + clique manual em "Sincronizar agora") e criem
+// dois eventos duplicados no Google antes de qualquer uma delas gravar o
+// google_event_id de volta.
+const syncInFlight = new Set<string>();
+
 /** Reconcilia uma sessao pendente de sincronizacao com o Google Calendar - cria, atualiza ou cancela conforme o estado local atual. */
 export async function syncAppointment(scheduleId: string): Promise<Schedule> {
+  if (syncInFlight.has(scheduleId)) {
+    const current = await scheduleRepository.findScheduleById(scheduleId);
+    if (!current) throw new AppError(`Agendamento nao encontrado: ${scheduleId}`);
+    return current;
+  }
+
+  syncInFlight.add(scheduleId);
+  try {
+    return await syncAppointmentInternal(scheduleId);
+  } finally {
+    syncInFlight.delete(scheduleId);
+  }
+}
+
+async function syncAppointmentInternal(scheduleId: string): Promise<Schedule> {
   const schedule = await scheduleRepository.findScheduleById(scheduleId);
   if (!schedule) throw new AppError(`Agendamento nao encontrado: ${scheduleId}`);
   if (schedule.calendar_sync_status === "synced") return schedule;
@@ -149,4 +215,31 @@ export async function syncAppointment(scheduleId: string): Promise<Schedule> {
     if (!(err instanceof CalendarUnavailableError)) throw err;
     throw new AppError("Ainda não foi possível sincronizar com o Google Calendar. Tente novamente em instantes.");
   }
+}
+
+/**
+ * Varre as sessoes marcadas como "pending" (criadas/remarcadas/canceladas
+ * enquanto o Google estava indisponivel) e tenta reconciliar cada uma. Chamada
+ * periodicamente (ver server.ts) para que a sincronizacao volte sozinha assim
+ * que o Google normalizar, sem depender do clique manual em "Sincronizar agora".
+ * Uma falha isolada nao interrompe as demais.
+ */
+export async function reconcilePendingSyncs(): Promise<{ total: number; synced: number; stillPending: number }> {
+  const pending = await scheduleRepository.findPendingSync();
+  let synced = 0;
+
+  for (const schedule of pending) {
+    try {
+      const result = await syncAppointment(schedule.id);
+      if (result.calendar_sync_status === "synced") synced += 1;
+    } catch (err) {
+      logger.warn(SCOPE, "Falha ao reconciliar sessao pendente - tenta de novo na proxima varredura", { scheduleId: schedule.id });
+    }
+  }
+
+  const stillPending = pending.length - synced;
+  if (pending.length > 0) {
+    logger.info(SCOPE, "Reconciliacao automatica com o Google Calendar concluida", { total: pending.length, synced, stillPending });
+  }
+  return { total: pending.length, synced, stillPending };
 }

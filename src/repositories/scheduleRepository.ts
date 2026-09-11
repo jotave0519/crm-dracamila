@@ -63,6 +63,18 @@ export async function markSyncPending(scheduleId: string): Promise<Schedule> {
   return data;
 }
 
+/** Usado pela reconciliacao automatica com o Google Calendar: sessoes salvas localmente que ainda nao foram (ou deixaram de ser) sincronizadas. */
+export async function findPendingSync(limit = 50): Promise<Schedule[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("schedules")
+    .select("*")
+    .eq("calendar_sync_status", "pending")
+    .order("updated_at", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 export async function findScheduleById(scheduleId: string): Promise<Schedule | null> {
   const { data, error } = await getSupabaseClient().from("schedules").select("*").eq("id", scheduleId).maybeSingle();
   if (error) throw error;

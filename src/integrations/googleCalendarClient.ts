@@ -1,9 +1,15 @@
 import fs from "fs";
 import axios from "axios";
 import { env } from "../config/env";
-import * as businessHoursService from "../services/businessHoursService";
 import { logger } from "../utils/logger";
 import { withRetry } from "../utils/retry";
+
+// Este modulo e um cliente FINO da API do Google - so fala com o Google.
+// Toda a logica de "qual e a fonte da verdade da agenda" (horarios candidatos,
+// conflitos, disponibilidade) vive em services/schedulingService.ts, que usa
+// a tabela local `schedules` como fonte primaria e trata o Google como
+// enriquecimento best-effort. Isso evita que uma instabilidade do Google
+// derrube o agendamento pelo WhatsApp (ver CalendarUnavailableError).
 
 // Cliente REST feito com axios (em vez da lib "googleapis") - o gaxios/node-fetch
 // interno apresenta "Premature close" ao ler respostas gzip em ambientes Windows
@@ -133,11 +139,14 @@ function fullDayBounds(date: string): { start: Date; end: Date } {
   return { start: new Date(`${date}T00:00:00-03:00`), end: new Date(`${date}T23:59:59-03:00`) };
 }
 
-function todayIsoDate(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-}
-
-async function fetchBusyBlocksForDay(date: string): Promise<{ start: Date; end: Date }[]> {
+/**
+ * Busca os blocos ocupados do Google Calendar num dia - usado pelo
+ * schedulingService como ENRIQUECIMENTO best-effort da disponibilidade
+ * (pega bloqueios criados direto no Google, fora do sistema). Lanca
+ * CalendarUnavailableError se o Google estiver indisponivel; quem chama
+ * decide se isso deve interromper o fluxo ou so seguir sem esses dados.
+ */
+export async function fetchBusyBlocksForDay(date: string): Promise<{ start: Date; end: Date }[]> {
   const { start, end } = fullDayBounds(date);
   const data = await calendarRequest<{ items?: CalendarEvent[] }>("get", eventsPath(), {
     params: { timeMin: start.toISOString(), timeMax: end.toISOString(), singleEvents: true, orderBy: "startTime" },
@@ -145,31 +154,6 @@ async function fetchBusyBlocksForDay(date: string): Promise<{ start: Date; end: 
   return (data.items || [])
     .filter((e) => e.start?.dateTime && e.end?.dateTime)
     .map((e) => ({ start: new Date(e.start!.dateTime!), end: new Date(e.end!.dateTime!) }));
-}
-
-/**
- * Horarios candidatos vem exclusivamente da lista cadastrada em
- * business_hour_slots - a duracao do procedimento so entra na checagem de
- * conflito com eventos reais do Calendar, nunca para gerar novos candidatos.
- * Nunca oferece um horario de hoje que ja passou ou passa nos proximos 20 min.
- */
-export async function checkAvailability(date: string, durationMinutes: number = DEFAULT_SLOT_MINUTES): Promise<string[]> {
-  const { enabled, slots } = await businessHoursService.getDaySlots(date);
-  if (!enabled) return [];
-
-  const busy = await fetchBusyBlocksForDay(date);
-  const isToday = date === todayIsoDate();
-  const minStartMs = Date.now() + 20 * 60_000;
-
-  const results: string[] = [];
-  for (const slotTime of slots) {
-    const start = new Date(`${date}T${slotTime}:00-03:00`);
-    if (isToday && start.getTime() < minStartMs) continue;
-    const end = new Date(start.getTime() + durationMinutes * 60_000);
-    const overlaps = busy.some((b) => start.getTime() < b.end.getTime() && end.getTime() > b.start.getTime());
-    if (!overlaps) results.push(start.toISOString());
-  }
-  return results;
 }
 
 export async function createEvent(params: {
