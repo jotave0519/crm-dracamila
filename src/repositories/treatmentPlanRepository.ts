@@ -1,5 +1,10 @@
 import { getSupabaseClient } from "../integrations/supabaseClient";
 import { TreatmentPlan, TreatmentPlanStatus } from "../types";
+import { memoizeAsync } from "../utils/cache";
+
+// /dashboard e /reminders chamam isso juntos (mesma tela) - cache curto evita
+// rodar as mesmas 2 consultas (planos ativos + contagem de sessoes) 2x seguidas.
+const ACTIVE_PLANS_CACHE_TTL_MS = 20_000;
 
 export async function listByPatient(userId: string): Promise<TreatmentPlan[]> {
   const { data, error } = await getSupabaseClient().from("treatment_plans").select("*").eq("user_id", userId).order("created_at", { ascending: false });
@@ -107,8 +112,8 @@ export interface ActivePlanWithPatient extends TreatmentPlan {
   patientPhone: string | null;
 }
 
-/** Usado pelos Lembretes: todos os planos ativos de todos os pacientes, com contagem de sessoes em lote (sem N+1). */
-export async function listActiveWithCompletedCount(): Promise<ActivePlanWithPatient[]> {
+/** Usado pelos Lembretes e pelo Dashboard: todos os planos ativos de todos os pacientes, com contagem de sessoes em lote (sem N+1). */
+export const listActiveWithCompletedCount = memoizeAsync(async (): Promise<ActivePlanWithPatient[]> => {
   const { data: plans, error } = await getSupabaseClient().from("treatment_plans").select("*, users(name, phone)").eq("status", "ativo");
   if (error) throw error;
   const rows = (plans || []) as any[];
@@ -124,4 +129,4 @@ export async function listActiveWithCompletedCount(): Promise<ActivePlanWithPati
   }
 
   return rows.map((p) => ({ ...p, sessionsCompleted: counts[p.id] || 0, patientName: p.users?.name ?? null, patientPhone: p.users?.phone ?? null }));
-}
+}, ACTIVE_PLANS_CACHE_TTL_MS);

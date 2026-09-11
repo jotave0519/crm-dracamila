@@ -4,7 +4,7 @@ import { createException, deleteException, listExceptions, updateException } fro
 import { createSlot, deleteSlot } from "../controllers/api/businessHourSlotController";
 import { ensureConversation, getConversation, listConversations, sendMessage, updateStatus } from "../controllers/api/conversationController";
 import { createEvolution, deleteEvolution, listEvolutions, updateEvolution } from "../controllers/api/clinicalEvolutionController";
-import { getDashboard } from "../controllers/api/dashboardController";
+import { getDashboard, getDashboardSummary } from "../controllers/api/dashboardController";
 import { createCategory, deleteCategory, listCategories, updateCategory } from "../controllers/api/financialCategoryController";
 import { createTransaction, deleteTransaction, getMonthlyChart, getSummary, listTransactions, updateTransaction } from "../controllers/api/financialTransactionController";
 import { createInventoryItem, deleteInventoryItem, getSummary as getInventorySummary, listInventory, updateInventoryItem } from "../controllers/api/inventoryController";
@@ -29,6 +29,7 @@ apiRouter.use(requireAuth);
 apiRouter.get("/me", getMe);
 
 apiRouter.get("/dashboard", getDashboard);
+apiRouter.get("/dashboard/summary", getDashboardSummary);
 
 apiRouter.get("/patients", listPatients);
 apiRouter.get("/patients/:id", getPatient);

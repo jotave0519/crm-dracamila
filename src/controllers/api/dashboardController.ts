@@ -84,56 +84,46 @@ function topTreatmentTypes(rows: { procedure: string; status: string; date: stri
   return top;
 }
 
+/**
+ * So o essencial pra tela inicial (tudo que fica visivel sem interacao):
+ * hoje, financeiro do mes, agenda/retornos/pacotes/pacientes-sem-retorno.
+ * Os indicadores historicos (6 meses) que so aparecem dentro do card
+ * colapsavel "Resumo da Clinica" saem daqui e vao pra getDashboardSummary,
+ * buscados sob demanda (so quando a doutora expande o card) - a consulta
+ * mais pesada de todas (6 meses de TODAS as sessoes, scheduleRepository.
+ * listAllInRange) so servia pra alimentar esse card, que fica fechado por padrao.
+ */
 export async function getDashboard(_req: Request, res: Response): Promise<void> {
   try {
     const now = new Date();
     const today = now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
     const currentTime = now.toLocaleTimeString("en-GB", { timeZone: TIMEZONE, hour12: false });
     const { start: monthStart, end: monthEnd } = monthBounds(now);
-    const { start: weekStart, end: weekEnd } = weekBounds(now);
     const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - (CHART_MONTHS - 1), 1).toISOString().slice(0, 10);
 
     const [
       todayAppointments,
       nextAppointment,
-      activePatients,
-      sessionsThisMonth,
       revenueThisMonth,
       expensesThisMonth,
-      newPatientsThisMonth,
-      patientsInTreatment,
       recentSessions,
-      sessionsThisWeek,
       lowStockCount,
       upcomingReturns,
-      birthdays,
       revenuePaidRows,
-      scheduleRows,
-      newPatientRows,
       patientsWithoutReturn,
       activePlans,
-      patientsCompletedTreatment,
       revenueToday,
     ] = await Promise.all([
       scheduleRepository.findAllByDate(today),
       scheduleRepository.findNextUpcoming(today, currentTime),
-      userRepository.countActive(),
-      scheduleRepository.countCompletedInMonth(monthStart, monthEnd),
       financialTransactionRepository.sumRevenuePaidInRange(monthStart, inclusiveEnd(monthEnd)),
       financialTransactionRepository.sumExpensesPaidInRange(monthStart, inclusiveEnd(monthEnd)),
-      userRepository.countNewInMonth(monthStart, monthEnd),
-      scheduleRepository.countDistinctUsersInTreatment(daysAgo(now, 30)),
       scheduleRepository.findRecentCompleted(5),
-      scheduleRepository.countInWeek(weekStart, weekEnd),
       inventoryRepository.countLowStock(),
       scheduleRepository.findUpcoming(today, 5),
-      userRepository.listBirthdaysInMonth(Number(monthStart.slice(5, 7))),
       financialTransactionRepository.listPaidSince(sixMonthsStart),
-      scheduleRepository.listAllInRange(sixMonthsStart, today),
-      userRepository.listCreatedSince(sixMonthsStart),
       reminderService.getPatientsWithoutReturn(),
       treatmentPlanRepository.listActiveWithCompletedCount(),
-      treatmentPlanRepository.countByStatus("concluido"),
       financialTransactionRepository.sumRevenuePaidInRange(today, today),
     ]);
 
@@ -148,6 +138,68 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
       (r) => r.transaction_date,
       (r) => Number(r.amount)
     );
+
+    res.json({
+      kpis: {
+        sessionsToday: todayAppointments.length,
+        revenueThisMonth,
+        expensesThisMonth,
+        profitThisMonth: revenueThisMonth - expensesThisMonth,
+        revenueToday,
+        lowStockCount,
+        patientsWithoutReturnCount: patientsWithoutReturn.length,
+        patientsNearingDischarge: packagesEndingSoon.length,
+      },
+      nextAppointment: nextAppointment
+        ? { id: nextAppointment.id, patient_name: nextAppointment.patient_name, procedure: nextAppointment.procedure, date: nextAppointment.date, time: nextAppointment.time, status: nextAppointment.status }
+        : null,
+      todayAppointments: todayAppointments.map((a) => ({ id: a.id, patient_id: a.user_id, patient_name: a.patient_name, procedure: a.procedure, time: a.time, status: a.status })),
+      recentSessions: recentSessions.map((s) => ({ id: s.id, patient_name: s.patient_name, procedure: s.procedure, date: s.date, time: s.time })),
+      upcomingReturns: upcomingReturns.map((s) => ({ id: s.id, patient_name: s.patient_name, procedure: s.procedure, date: s.date, time: s.time })),
+      patientsWithoutReturn: patientsWithoutReturn
+        .sort((a, b) => b.daysSince - a.daysSince)
+        .slice(0, 5)
+        .map((p) => ({ patientId: p.patientId, patientName: p.patientName, phone: p.phone, daysSince: p.daysSince })),
+      packagesEndingSoon: packagesEndingSoon.slice(0, 5).map((p) => ({
+        planId: p.id,
+        patientId: p.user_id,
+        patientName: p.patientName,
+        sessionsRemaining: p.sessionsRemaining,
+      })),
+      charts: { revenueByMonth },
+    });
+  } catch (err) {
+    logger.error(SCOPE, "Erro ao carregar dashboard", err);
+    res.status(500).json({ error: "Erro ao carregar dashboard." });
+  }
+}
+
+/**
+ * Indicadores historicos do card colapsavel "Resumo da Clinica" - buscado
+ * sob demanda pelo frontend so quando a doutora expande o card, em vez de
+ * sempre junto com o /dashboard critico. Inclui a consulta mais pesada do
+ * dashboard (scheduleRepository.listAllInRange sobre 6 meses).
+ */
+export async function getDashboardSummary(_req: Request, res: Response): Promise<void> {
+  try {
+    const now = new Date();
+    const { start: monthStart, end: monthEnd } = monthBounds(now);
+    const { start: weekStart, end: weekEnd } = weekBounds(now);
+    const today = now.toLocaleDateString("en-CA", { timeZone: TIMEZONE });
+    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - (CHART_MONTHS - 1), 1).toISOString().slice(0, 10);
+
+    const [activePatients, sessionsThisMonth, newPatientsThisMonth, patientsInTreatment, sessionsThisWeek, birthdays, scheduleRows, newPatientRows, patientsCompletedTreatment] = await Promise.all([
+      userRepository.countActive(),
+      scheduleRepository.countCompletedInMonth(monthStart, monthEnd),
+      userRepository.countNewInMonth(monthStart, monthEnd),
+      scheduleRepository.countDistinctUsersInTreatment(daysAgo(now, 30)),
+      scheduleRepository.countInWeek(weekStart, weekEnd),
+      userRepository.listBirthdaysInMonth(Number(monthStart.slice(5, 7))),
+      scheduleRepository.listAllInRange(sixMonthsStart, today),
+      userRepository.listCreatedSince(sixMonthsStart),
+      treatmentPlanRepository.countByStatus("concluido"),
+    ]);
+
     const sessionsByMonth = bucketByMonth(
       scheduleRows.filter((s) => s.status === "Concluido"),
       now,
@@ -163,50 +215,23 @@ export async function getDashboard(_req: Request, res: Response): Promise<void> 
 
     res.json({
       kpis: {
-        sessionsToday: todayAppointments.length,
         sessionsThisWeek,
-        activePatients,
         sessionsThisMonth,
-        revenueThisMonth,
-        expensesThisMonth,
-        profitThisMonth: revenueThisMonth - expensesThisMonth,
-        revenueToday,
+        activePatients,
         newPatientsThisMonth,
         patientsInTreatment,
-        lowStockCount,
         birthdaysThisMonthCount: birthdays.length,
         patientsCompletedTreatment,
-        patientsWithoutReturnCount: patientsWithoutReturn.length,
-        patientsNearingDischarge: packagesEndingSoon.length,
       },
-      nextAppointment: nextAppointment
-        ? { id: nextAppointment.id, patient_name: nextAppointment.patient_name, procedure: nextAppointment.procedure, date: nextAppointment.date, time: nextAppointment.time, status: nextAppointment.status }
-        : null,
-      todayAppointments: todayAppointments.map((a) => ({ id: a.id, patient_id: a.user_id, patient_name: a.patient_name, procedure: a.procedure, time: a.time, status: a.status })),
-      recentSessions: recentSessions.map((s) => ({ id: s.id, patient_name: s.patient_name, procedure: s.procedure, date: s.date, time: s.time })),
-      upcomingReturns: upcomingReturns.map((s) => ({ id: s.id, patient_name: s.patient_name, procedure: s.procedure, date: s.date, time: s.time })),
-      birthdays: birthdays
-        .map((b) => ({ id: b.id, name: b.name, day: Number(b.birth_date.slice(8, 10)) }))
-        .sort((a, b) => a.day - b.day),
-      patientsWithoutReturn: patientsWithoutReturn
-        .sort((a, b) => b.daysSince - a.daysSince)
-        .slice(0, 5)
-        .map((p) => ({ patientId: p.patientId, patientName: p.patientName, phone: p.phone, daysSince: p.daysSince })),
-      packagesEndingSoon: packagesEndingSoon.slice(0, 5).map((p) => ({
-        planId: p.id,
-        patientId: p.user_id,
-        patientName: p.patientName,
-        sessionsRemaining: p.sessionsRemaining,
-      })),
+      birthdays: birthdays.map((b) => ({ id: b.id, name: b.name, day: Number(b.birth_date.slice(8, 10)) })).sort((a, b) => a.day - b.day),
       charts: {
-        revenueByMonth,
         sessionsByMonth,
         newPatientsByMonth,
         topTreatmentTypes: topTreatmentTypes(scheduleRows, monthStart),
       },
     });
   } catch (err) {
-    logger.error(SCOPE, "Erro ao carregar dashboard", err);
-    res.status(500).json({ error: "Erro ao carregar dashboard." });
+    logger.error(SCOPE, "Erro ao carregar resumo do dashboard", err);
+    res.status(500).json({ error: "Erro ao carregar resumo do dashboard." });
   }
 }

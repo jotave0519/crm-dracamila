@@ -19,18 +19,11 @@ interface ChartMonth {
 interface DashboardData {
   kpis: {
     sessionsToday: number;
-    sessionsThisWeek: number;
-    activePatients: number;
-    sessionsThisMonth: number;
     revenueThisMonth: number;
     revenueToday: number;
     expensesThisMonth: number;
     profitThisMonth: number;
-    newPatientsThisMonth: number;
-    patientsInTreatment: number;
     lowStockCount: number;
-    birthdaysThisMonthCount: number;
-    patientsCompletedTreatment: number;
     patientsWithoutReturnCount: number;
     patientsNearingDischarge: number;
   };
@@ -38,11 +31,30 @@ interface DashboardData {
   todayAppointments: { id: string; patient_id: string; patient_name: string; procedure: string; time: string; status: string }[];
   recentSessions: { id: string; patient_name: string; procedure: string; date: string; time: string }[];
   upcomingReturns: { id: string; patient_name: string; procedure: string; date: string; time: string }[];
-  birthdays: { id: string; name: string; day: number }[];
   patientsWithoutReturn: { patientId: string; patientName: string; phone: string; daysSince: number }[];
   packagesEndingSoon: { planId: string; patientId: string; patientName: string | null; sessionsRemaining: number }[];
   charts: {
     revenueByMonth: ChartMonth[];
+  };
+}
+
+/**
+ * Indicadores historicos (6 meses) que so aparecem dentro do card colapsavel
+ * "Resumo da Clinica" - buscados sob demanda so quando esse card e expandido,
+ * em vez de sempre junto com o /dashboard (ver getDashboardSummary no backend).
+ */
+interface DashboardSummaryData {
+  kpis: {
+    sessionsThisWeek: number;
+    sessionsThisMonth: number;
+    activePatients: number;
+    newPatientsThisMonth: number;
+    patientsInTreatment: number;
+    birthdaysThisMonthCount: number;
+    patientsCompletedTreatment: number;
+  };
+  birthdays: { id: string; name: string; day: number }[];
+  charts: {
     sessionsByMonth: ChartMonth[];
     newPatientsByMonth: ChartMonth[];
     topTreatmentTypes: { procedure: string; count: number }[];
@@ -238,11 +250,18 @@ function TreatmentTypesList({ data }: { data: { procedure: string; count: number
   );
 }
 
-function CollapsibleSection({ title, children }: { title: string; children: ReactNode }) {
+function CollapsibleSection({ title, onExpand, children }: { title: string; onExpand?: () => void; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="card" style={{ marginBottom: 24 }}>
-      <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left" }}>
+      <button
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next) onExpand?.();
+        }}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", textAlign: "left" }}
+      >
         <span className="text-h3">{title}</span>
         <span className="link-accent">
           {open ? "Ocultar" : "Mostrar indicadores"}
@@ -261,6 +280,8 @@ export function Dashboard() {
   // conhecido na hora (em vez de skeleton) enquanto atualiza por tras.
   const [data, setData] = useSessionCache<DashboardData>("dashboard");
   const [reminderCount, setReminderCount] = useSessionCache<number>("dashboard-reminders");
+  const [summary, setSummary] = useSessionCache<DashboardSummaryData>("dashboard-summary");
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -281,6 +302,20 @@ export function Dashboard() {
     }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
   }, []);
+
+  // "Resumo da Clinica" fica colapsado por padrao - os indicadores historicos
+  // (6 meses) so sao buscados quando a doutora realmente expande o card, em
+  // vez de sempre no carregamento inicial (era a consulta mais pesada do
+  // dashboard e a maioria das visitas nunca chega a abrir esse card).
+  function loadSummary() {
+    if (summary || summaryLoading) return;
+    setSummaryLoading(true);
+    api
+      .get<DashboardSummaryData>("/dashboard/summary")
+      .then(setSummary)
+      .catch(() => {})
+      .finally(() => setSummaryLoading(false));
+  }
 
   async function handleContact(patientId: string) {
     try {
@@ -496,58 +531,64 @@ export function Dashboard() {
 
       <div style={{ marginTop: 28 }}>
         <SectionLabel>Visão geral</SectionLabel>
-        <CollapsibleSection title="Resumo da Clínica">
-        <KpiGroup
-          title="Atendimento"
-          accent="var(--accent)"
-          items={[
-            { label: "Sessões na semana", value: String(data.kpis.sessionsThisWeek) },
-            { label: "Sessões no mês", value: String(data.kpis.sessionsThisMonth) },
-          ]}
-        />
+        <CollapsibleSection title="Resumo da Clínica" onExpand={loadSummary}>
+        {!summary ? (
+          <SkeletonKpiGrid count={4} />
+        ) : (
+          <>
+            <KpiGroup
+              title="Atendimento"
+              accent="var(--accent)"
+              items={[
+                { label: "Sessões na semana", value: String(summary.kpis.sessionsThisWeek) },
+                { label: "Sessões no mês", value: String(summary.kpis.sessionsThisMonth) },
+              ]}
+            />
 
-        <KpiGroup
-          title="Pacientes"
-          accent="var(--green)"
-          items={[
-            { label: "Ativos", value: String(data.kpis.activePatients) },
-            { label: "Em tratamento", value: String(data.kpis.patientsInTreatment) },
-            { label: "Novos no mês", value: String(data.kpis.newPatientsThisMonth) },
-            { label: "Aniversariantes no mês", value: String(data.kpis.birthdaysThisMonthCount) },
-            { label: "Concluíram tratamento", value: String(data.kpis.patientsCompletedTreatment), onClick: () => navigate("/pacientes") },
-            {
-              label: "Sem retorno",
-              value: String(data.kpis.patientsWithoutReturnCount),
-              color: data.kpis.patientsWithoutReturnCount > 0 ? "var(--red)" : undefined,
-              onClick: () => navigate("/lembretes"),
-            },
-            { label: "Próximos da alta", value: String(data.kpis.patientsNearingDischarge), onClick: () => navigate("/pacientes") },
-          ]}
-        />
+            <KpiGroup
+              title="Pacientes"
+              accent="var(--green)"
+              items={[
+                { label: "Ativos", value: String(summary.kpis.activePatients) },
+                { label: "Em tratamento", value: String(summary.kpis.patientsInTreatment) },
+                { label: "Novos no mês", value: String(summary.kpis.newPatientsThisMonth) },
+                { label: "Aniversariantes no mês", value: String(summary.kpis.birthdaysThisMonthCount) },
+                { label: "Concluíram tratamento", value: String(summary.kpis.patientsCompletedTreatment), onClick: () => navigate("/pacientes") },
+                {
+                  label: "Sem retorno",
+                  value: String(data.kpis.patientsWithoutReturnCount),
+                  color: data.kpis.patientsWithoutReturnCount > 0 ? "var(--red)" : undefined,
+                  onClick: () => navigate("/lembretes"),
+                },
+                { label: "Próximos da alta", value: String(data.kpis.patientsNearingDischarge), onClick: () => navigate("/pacientes") },
+              ]}
+            />
 
-        <div className="grid-responsive-3" style={{ gap: 20, marginBottom: 24 }}>
-          <ListCard title="Aniversariantes do mês" onSeeAll={() => navigate("/pacientes")}>
-            {data.birthdays.length === 0 && <div className="empty-state">Nenhum aniversariante este mês.</div>}
-            {data.birthdays.map((b) => (
-              <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "9px 6px", borderTop: "1px solid var(--border-soft)" }}>
-                <span style={{ fontSize: 13.5, fontWeight: 500 }}>{b.name}</span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>dia {String(b.day).padStart(2, "0")}</span>
-              </div>
-            ))}
-          </ListCard>
-        </div>
+            <div className="grid-responsive-3" style={{ gap: 20, marginBottom: 24 }}>
+              <ListCard title="Aniversariantes do mês" onSeeAll={() => navigate("/pacientes")}>
+                {summary.birthdays.length === 0 && <div className="empty-state">Nenhum aniversariante este mês.</div>}
+                {summary.birthdays.map((b) => (
+                  <div key={b.id} style={{ display: "flex", justifyContent: "space-between", padding: "9px 6px", borderTop: "1px solid var(--border-soft)" }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 500 }}>{b.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>dia {String(b.day).padStart(2, "0")}</span>
+                  </div>
+                ))}
+              </ListCard>
+            </div>
 
-        <div className="grid-responsive-2" style={{ gap: 14 }}>
-          <ChartCard title="Sessões por mês">
-            <MonthlyBarChart data={data.charts.sessionsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Sessões concluídas por mês" />
-          </ChartCard>
-          <ChartCard title="Novos pacientes por mês">
-            <MonthlyBarChart data={data.charts.newPatientsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Novos pacientes por mês" />
-          </ChartCard>
-          <ChartCard title="Tipos de atendimento mais realizados">
-            <TreatmentTypesList data={data.charts.topTreatmentTypes} />
-          </ChartCard>
-        </div>
+            <div className="grid-responsive-2" style={{ gap: 14 }}>
+              <ChartCard title="Sessões por mês">
+                <MonthlyBarChart data={summary.charts.sessionsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Sessões concluídas por mês" />
+              </ChartCard>
+              <ChartCard title="Novos pacientes por mês">
+                <MonthlyBarChart data={summary.charts.newPatientsByMonth} color="var(--accent)" formatValue={(v) => String(v)} ariaLabel="Novos pacientes por mês" />
+              </ChartCard>
+              <ChartCard title="Tipos de atendimento mais realizados">
+                <TreatmentTypesList data={summary.charts.topTreatmentTypes} />
+              </ChartCard>
+            </div>
+          </>
+        )}
       </CollapsibleSection>
 
         <ListCard title="Últimos atendimentos" onSeeAll={() => navigate("/agenda")}>
