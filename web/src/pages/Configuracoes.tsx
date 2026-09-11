@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { MoonIcon, SunIcon } from "../components/icons";
 import { api } from "../lib/api";
-import { isIos, promptInstall, useInstallState } from "../lib/pwaInstall";
+import { isAndroid, promptInstall, useInstallState } from "../lib/pwaInstall";
 import { useToast } from "../context/ToastContext";
 
 interface ClinicSettings {
@@ -29,7 +29,7 @@ export function Configuracoes() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showIosInstructions, setShowIosInstructions] = useState(false);
+  const [installPlatform, setInstallPlatform] = useState<"ios" | "android">(() => (isAndroid() ? "android" : "ios"));
   const { deferredPrompt, installed } = useInstallState();
 
   useEffect(() => {
@@ -40,10 +40,6 @@ export function Configuracoes() {
     if (deferredPrompt) {
       const outcome = await promptInstall();
       if (outcome === "accepted") showToast("Aplicativo instalado.");
-      return;
-    }
-    if (isIos()) {
-      setShowIosInstructions((v) => !v);
     }
   }
 
@@ -122,24 +118,68 @@ export function Configuracoes() {
 
           {!installed && (
             <>
-              <button className="btn btn-secondary" onClick={handleInstallClick}>
-                Instalar aplicativo
-              </button>
-              {showIosInstructions && (
-                <p
-                  style={{
-                    fontSize: 12.5,
-                    color: "var(--text-muted)",
-                    lineHeight: 1.6,
-                    marginTop: 12,
-                    background: "var(--border-soft)",
-                    padding: 12,
-                    borderRadius: 10,
-                  }}
-                >
-                  Toque em <strong>Compartilhar</strong> (o ícone com a seta ↑) e depois em <strong>"Adicionar à Tela de Início"</strong>.
-                </p>
+              {deferredPrompt && (
+                <button className="btn btn-secondary" onClick={handleInstallClick} style={{ marginBottom: 16 }}>
+                  Instalar aplicativo
+                </button>
               )}
+
+              <div className="segmented" style={{ marginBottom: 14 }}>
+                <span
+                  className={`segmented-item${installPlatform === "ios" ? " active" : ""}`}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setInstallPlatform("ios")}
+                >
+                  iPhone
+                </span>
+                <span
+                  className={`segmented-item${installPlatform === "android" ? " active" : ""}`}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setInstallPlatform("android")}
+                >
+                  Android
+                </span>
+              </div>
+
+              <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                {(installPlatform === "ios"
+                  ? [
+                      "Abra o sistema pelo Safari.",
+                      "Toque no botão Compartilhar.",
+                      'Toque em "Adicionar à Tela de Início".',
+                      'Se disponível, utilize "Abrir como App da Web".',
+                      "Toque em \"Adicionar\".",
+                    ]
+                  : [
+                      "Abra o sistema pelo Google Chrome.",
+                      "Abra o menu de três pontos.",
+                      'Procure por "Instalar app" ou pela opção de instalação/atalho disponível.',
+                      "Confirme a instalação.",
+                      "O sistema deverá aparecer na tela inicial como um aplicativo.",
+                    ]
+                ).map((step, i) => (
+                  <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        background: "var(--accent)",
+                        color: "#fff",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.5, paddingTop: 1 }}>{step}</span>
+                  </li>
+                ))}
+              </ol>
             </>
           )}
         </div>

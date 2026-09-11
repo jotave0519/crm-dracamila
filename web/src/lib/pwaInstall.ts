@@ -48,6 +48,10 @@ export function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent) && !("MSStream" in window);
 }
 
+export function isAndroid(): boolean {
+  return /android/i.test(window.navigator.userAgent);
+}
+
 /** Sempre a mesma referencia entre mudancas reais - useSyncExternalStore exige isso. */
 export function getInstallSnapshot(): InstallState {
   return state;
