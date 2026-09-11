@@ -147,10 +147,10 @@ a {
 }
 
 .page-title {
-  font-family: "Instrument Serif", "Fraunces", Georgia, serif;
+  font-family: "Space Grotesk", "Instrument Sans", system-ui, sans-serif;
   font-size: 23px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   line-height: 1.15;
   margin: 0;
 }
@@ -667,10 +667,10 @@ a.card:active {
 .mobile-header-title {
   flex: 1;
   min-width: 0;
-  font-family: "Instrument Serif", "Fraunces", serif;
-  font-size: 18px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
+  font-family: "Space Grotesk", "Instrument Sans", system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -889,8 +889,9 @@ a.card:active {
   justify-content: center;
   box-shadow: 0 4px 12px rgba(63, 98, 73, 0.26);
   flex: 0 0 34px;
-  font-family: "Instrument Serif", "Fraunces", serif;
-  font-size: 19px;
+  font-family: "Space Grotesk", "Instrument Sans", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 17px;
   line-height: 1;
 }
 
