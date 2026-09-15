@@ -47,3 +47,18 @@ export const TrendingDownIcon = (props: SVGProps<SVGSVGElement>) => <Icon {...pr
 export const CopyIcon = (props: SVGProps<SVGSVGElement>) => (
   <Icon {...props} d="M9 9h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V11a2 2 0 0 1 2-2ZM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
 );
+export const StethoscopeIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M11 2v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V2M4.8 2h2.4M14.8 2h2.4M5 8v5a6 6 0 0 0 12 0V8M19 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+);
+export const RepeatIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="m17 2 4 4-4 4M3 11V10a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3" />
+);
+export const DollarSignIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+);
+export const ClipboardListIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 3h6a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1ZM9 12h6M9 16h6M9 9h.01" />
+);
+export const FlagIcon = (props: SVGProps<SVGSVGElement>) => (
+  <Icon {...props} d="M4 22V4a1 1 0 0 1 1-1c2 0 3 1 6 1s5-1 7-1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1c-2 0-3 1-7 1s-5-1-6-1" />
+);

@@ -1,10 +1,22 @@
-import { FormEvent, useEffect, useState } from "react";
+import { ComponentType, FormEvent, SVGProps, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BackHeader } from "../components/BackHeader";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { EmptyState } from "../components/EmptyState";
 import { EvolutionLineChart } from "../components/EvolutionLineChart";
 import { LoadingState } from "../components/Skeleton";
+import {
+  AlertTriangleIcon,
+  CheckIcon,
+  ClipboardListIcon,
+  DollarSignIcon,
+  FlagIcon,
+  PencilIcon,
+  RepeatIcon,
+  StethoscopeIcon,
+  TrendingUpIcon,
+  XIcon,
+} from "../components/icons";
 import { api } from "../lib/api";
 
 interface Patient {
@@ -104,17 +116,17 @@ interface TimelineEvent {
 const STATUS_BADGE: Record<string, string> = { Agendado: "badge-blue", Confirmado: "badge-yellow", Concluido: "badge-green", Faltou: "badge-red", Cancelado: "badge-neutral" };
 const PLAN_STATUS_BADGE: Record<string, string> = { ativo: "badge-blue", concluido: "badge-green", cancelado: "badge-neutral" };
 
-const TIMELINE_ICONS: Record<string, string> = {
-  primeira_avaliacao: "🩺",
-  sessao_realizada: "✅",
-  sessao_remarcada: "🔁",
-  paciente_faltou: "⚠️",
-  consulta_cancelada: "❌",
-  pagamento: "💰",
-  evolucao: "📈",
-  plano_iniciado: "📋",
-  plano_concluido: "🎉",
-  nota_manual: "📝",
+const TIMELINE_ICONS: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
+  primeira_avaliacao: StethoscopeIcon,
+  sessao_realizada: CheckIcon,
+  sessao_remarcada: RepeatIcon,
+  paciente_faltou: AlertTriangleIcon,
+  consulta_cancelada: XIcon,
+  pagamento: DollarSignIcon,
+  evolucao: TrendingUpIcon,
+  plano_iniciado: ClipboardListIcon,
+  plano_concluido: FlagIcon,
+  nota_manual: PencilIcon,
 };
 
 const TIMELINE_COLORS: Record<string, string> = {
@@ -1198,8 +1210,14 @@ export function PatientDetail() {
                   <div className="card" style={{ flex: 1, marginBottom: 16 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                       <div>
-                        <div style={{ fontSize: 13.5, fontWeight: 600 }}>
-                          {TIMELINE_ICONS[ev.type] || "•"} {ev.label}
+                        <div style={{ fontSize: 13.5, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                          {(() => {
+                            const TimelineIcon = TIMELINE_ICONS[ev.type];
+                            return TimelineIcon ? (
+                              <TimelineIcon width={14} height={14} style={{ color: TIMELINE_COLORS[ev.type] || "var(--text-muted)", flex: "0 0 auto" }} />
+                            ) : null;
+                          })()}
+                          {ev.label}
                         </div>
                         <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{new Date(`${ev.date}T12:00:00`).toLocaleDateString("pt-BR")}</div>
                       </div>

@@ -20,6 +20,7 @@ import { Lembretes } from "./pages/Lembretes";
 import { Login } from "./pages/Login";
 import { Pacientes } from "./pages/Pacientes";
 import { PatientDetail } from "./pages/PatientDetail";
+import { RecuperarSenha } from "./pages/RecuperarSenha";
 import { Relatorios } from "./pages/Relatorios";
 import { TiposAtendimento } from "./pages/TiposAtendimento";
 import { WhatsappIA } from "./pages/WhatsappIA";
@@ -45,6 +46,7 @@ export function App() {
           <ToastProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/recuperar-senha" element={<RecuperarSenha />} />
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<Dashboard />} />

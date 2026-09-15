@@ -80,13 +80,20 @@ function Block({
           <div className="toggle-card-desc">{desc}</div>
         </div>
         {!noSwitch && (
-          <label className="switch">
-            <input type="checkbox" checked={enabled} onChange={(e) => onToggle?.(e.target.checked)} />
+          <label className="switch" style={comingSoon ? { opacity: 0.5, cursor: "not-allowed" } : undefined} title={comingSoon ? "Ainda não está disponível" : undefined}>
+            <input
+              type="checkbox"
+              checked={comingSoon ? false : enabled}
+              disabled={comingSoon}
+              onChange={(e) => !comingSoon && onToggle?.(e.target.checked)}
+            />
             <span className="switch-track" />
           </label>
         )}
       </div>
-      {(noSwitch || enabled) && children && <div style={{ padding: "0 18px 18px" }}>{children}</div>}
+      {/* Enquanto for "Em breve" a IA ainda nao manda essas mensagens de verdade -
+          esconder os campos evita a pessoa configurar algo que nunca vai disparar. */}
+      {(noSwitch || (enabled && !comingSoon)) && children && <div style={{ padding: "0 18px 18px" }}>{children}</div>}
     </div>
   );
 }
