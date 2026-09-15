@@ -679,7 +679,10 @@ a.card:active {
 .mobile-tabbar {
   display: flex;
   height: calc(var(--bottom-nav-height) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
+  /* So uma folga minima (nao o safe-bottom inteiro) - o resto da faixa e
+     ocupado pelos proprios icones/labels, que esticam pra baixo em vez de
+     deixar uma tira vazia acima da barrinha de gesto do iPhone. */
+  padding-bottom: max(6px, calc(var(--safe-bottom) - 24px));
   background: var(--sidebar-bg);
   border-top: 1px solid var(--border);
   position: sticky;
