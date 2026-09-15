@@ -685,7 +685,16 @@ a.card:active {
   padding-bottom: max(6px, calc(var(--safe-bottom) - 24px));
   background: var(--sidebar-bg);
   border-top: 1px solid var(--border);
-  position: sticky;
+  /* position:sticky dentro da coluna flex (Layout.tsx, height:100dvh) so fica
+     colada no fundo se a soma exata dos irmaos bater com 100dvh - no iOS em
+     modo PWA standalone isso as vezes fica alguns px curto (imprecisao do
+     dvh), deixando um vao vazio abaixo da barra. position:fixed ancora
+     direto na viewport real, independente dessa conta - mesma abordagem
+     ja usada (e comprovada) na clinica de estetica. Como sai do fluxo, o
+     ".main" mobile reserva espaco equivalente via padding-bottom abaixo. */
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
   z-index: 40;
 }
@@ -990,7 +999,10 @@ a.card:active {
 
 @media (max-width: 768px) {
   .main {
-    padding: 16px;
+    /* MobileTabBar agora e position:fixed (fora do fluxo) - reserva espaco
+       equivalente aqui embaixo pra ultima linha de conteudo nao ficar
+       escondida atras da barra. Mesmo padrao da clinica de estetica. */
+    padding: 16px 16px calc(var(--bottom-nav-height) + var(--safe-bottom) + 20px);
   }
 }
 
