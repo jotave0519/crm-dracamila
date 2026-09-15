@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { MoonIcon, SunIcon } from "../components/icons";
+import { LogOutIcon, MoonIcon, SunIcon } from "../components/icons";
 import { api } from "../lib/api";
 import { isAndroid, promptInstall, useInstallState } from "../lib/pwaInstall";
 import { useToast } from "../context/ToastContext";
@@ -23,6 +24,7 @@ interface ClinicSettings {
 }
 
 export function Configuracoes() {
+  const { signOut } = useAuth();
   const { theme, setTheme } = useTheme();
   const { showToast } = useToast();
   const [clinic, setClinic] = useState<ClinicSettings | null>(null);
@@ -222,6 +224,16 @@ export function Configuracoes() {
             </button>
           </form>
         )}
+
+        <div className="card">
+          <button
+            type="button"
+            onClick={signOut}
+            style={{ display: "flex", alignItems: "center", gap: 10, background: "none", border: "none", padding: 0, color: "var(--red)", fontSize: 14, fontWeight: 500, cursor: "pointer" }}
+          >
+            <LogOutIcon width={16} height={16} /> Sair da conta
+          </button>
+        </div>
       </div>
     </div>
   );
